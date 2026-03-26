@@ -1,0 +1,124 @@
+networks:
+  proxy:
+    name: proxy
+
+services:
+
+  # ===========================================================================
+  # TRAEFIK — Reverse proxy central
+  # ===========================================================================
+  traefik:
+    image: traefik:v3.6
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ${DATA_DIR}/traefik/acme:/acme
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_DASHBOARD_USER}:${TRAEFIK_DASHBOARD_PASSWORD_HASH}"
+      # Redirect HTTP → HTTPS global
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+    networks:
+      - proxy
+
+  # ===========================================================================
+  # ADGUARD HOME — DNS local com wildcard para o domínio
+  # O arquivo AdGuardHome.yaml é gerado pelo build.sh e montado diretamente,
+  # eliminando a necessidade de configuração manual via wizard.
+  # ===========================================================================
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:8089"
+    volumes:
+      - ${DATA_DIR}/adguard/work:/opt/adguardhome/work
+      - ${DATA_DIR}/adguard/conf:/opt/adguardhome/conf
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adguard.rule=Host(`adguard.${DOMAIN}`)"
+      - "traefik.http.routers.adguard.entrypoints=websecure"
+      - "traefik.http.routers.adguard.tls.certresolver=letsencrypt"
+      - "traefik.http.services.adguard.loadbalancer.server.port=80"
+    networks:
+      - proxy
+
+  # ===========================================================================
+  # WIREGUARD — VPN (porta UDP única exposta)
+  # ===========================================================================
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - SERVERURL=${WIREGUARD_SERVERURL:-auto}
+      - SERVERPORT=51820
+      - PEERS=${WIREGUARD_PEER_COUNT}
+      - PEERDNS=${SERVER_IP}
+      - INTERNAL_SUBNET=10.13.13.0/24
+      - ALLOWEDIPS=0.0.0.0/0
+    ports:
+      - "51820:51820/udp"
+    volumes:
+      - ${DATA_DIR}/wireguard:/config
+      - /lib/modules:/lib/modules:ro
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    networks:
+      - proxy
+
+  # ===========================================================================
+  # WEBSERVER-A — Serviço de teste para subdomínio app1.{{DOMAIN}}
+  # ===========================================================================
+  app1:
+    image: nginxdemos/hello:latest
+    container_name: app1
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app1.rule=Host(`app1.${DOMAIN}`)"
+      - "traefik.http.routers.app1.entrypoints=websecure"
+      - "traefik.http.routers.app1.tls.certresolver=letsencrypt"
+      - "traefik.http.services.app1.loadbalancer.server.port=80"
+    networks:
+      - proxy
+
+  # ===========================================================================
+  # WEBSERVER-B — Serviço de teste para subdomínio app2.{{DOMAIN}}
+  # ===========================================================================
+  app2:
+    image: nginxdemos/hello:latest
+    container_name: app2
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app2.rule=Host(`app2.${DOMAIN}`)"
+      - "traefik.http.routers.app2.entrypoints=websecure"
+      - "traefik.http.routers.app2.tls.certresolver=letsencrypt"
+      - "traefik.http.services.app2.loadbalancer.server.port=80"
+    networks:
+      - proxy
