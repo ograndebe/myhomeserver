@@ -1,0 +1,10 @@
+.git/
+.gitignore
+*.md
+.opencode/
+credentials.txt
+build/
+.env
+*.log
+.DS_Store
+Thumbs.db
