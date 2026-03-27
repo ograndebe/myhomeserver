@@ -1,0 +1,29 @@
+  # ── Jellyfin ──────────────────────────────────────────────────────────────
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    group_add:
+      - "render"
+      - "video"
+    devices:
+      - /dev/dri:/dev/dri   # hardware transcoding (Intel/AMD)
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/Sao_Paulo}
+    volumes:
+      - {{ storage_path }}/jellyfin/config:/config
+      - {{ storage_path }}/media/movies:/data/movies
+      - {{ storage_path }}/media/shows:/data/shows
+      - {{ storage_path }}/media/music:/data/music
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.{{ domain }}`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      - "traefik.http.routers.jellyfin.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+      # Jellyfin tem autenticação própria — integrar Authentik via OIDC nas configurações

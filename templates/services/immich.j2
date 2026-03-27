@@ -1,0 +1,65 @@
+  # ── Immich (PostgreSQL + pgvecto.rs) ─────────────────────────────────────
+  immich-pg:
+    image: tensorchord/pgvecto-rs:pg16-v0.2.0
+    container_name: immich-pg
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=immich
+      - POSTGRES_PASSWORD=${IMMICH_DB_PASSWORD}
+      - POSTGRES_DB=immich
+    volumes:
+      - immich_pg_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U immich"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Immich (Redis) ────────────────────────────────────────────────────────
+  immich-redis:
+    image: redis:alpine
+    container_name: immich-redis
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── Immich Server ─────────────────────────────────────────────────────────
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: immich-server
+    restart: unless-stopped
+    environment:
+      - DB_HOSTNAME=immich-pg
+      - DB_USERNAME=immich
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+      - IMMICH_SERVER_URL=https://photos.{{ domain }}
+    volumes:
+      - {{ storage_path }}/immich/upload:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - proxy
+      - internal
+    depends_on:
+      immich-pg:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.immich.rule=Host(`photos.{{ domain }}`)"
+      - "traefik.http.routers.immich.entrypoints=websecure"
+      - "traefik.http.routers.immich.tls.certresolver=letsencrypt"
+      - "traefik.http.services.immich.loadbalancer.server.port=3001"
+      # Immich tem autenticação própria — integrar Authentik via OAuth2 nas configurações
+
+  # ── Immich Machine Learning ───────────────────────────────────────────────
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    container_name: immich-machine-learning
+    restart: unless-stopped
+    volumes:
+      - {{ storage_path }}/immich/model-cache:/cache
+    networks:
+      - internal

@@ -1,0 +1,62 @@
+---
+# Definição dos serviços disponíveis no homeserver
+# Usado pelo setup.py para popular as perguntas e pelo Jinja2 para renderizar os templates
+
+mandatory:
+  - id: traefik
+    name: Traefik
+    description: Reverse proxy com TLS automático via Let's Encrypt
+    ports: [80, 443]
+
+  - id: adguard
+    name: AdGuard Home
+    description: DNS local com bloqueio de anúncios
+    ports: [53, 3000]
+
+  - id: wireguard
+    name: WireGuard
+    description: VPN para acesso externo à rede interna
+    ports: [51820]
+
+  - id: authentik
+    name: Authentik
+    description: SSO centralizado — autenticação para todos os serviços
+    ports: []  # exposto apenas via Traefik
+
+optional:
+  - id: jellyfin
+    name: "Jellyfin + Stack *arr"
+    description: Media server com automação completa de downloads
+    includes:
+      - radarr
+      - sonarr
+      - prowlarr
+      - qbittorrent
+      - bazarr
+    ports: []
+
+  - id: nextcloud
+    name: Nextcloud
+    description: Storage pessoal, calendário, contatos e documentos
+    ports: []
+
+  - id: immich
+    name: Immich
+    description: Galeria e backup de fotos/vídeos (alternativa ao Google Photos)
+    ports: []
+
+dns_providers:
+  - id: cloudflare
+    name: Cloudflare
+    env_vars:
+      - CF_API_EMAIL
+      - CF_API_KEY
+  - id: route53
+    name: AWS Route53
+    env_vars:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_REGION
+  - id: manual
+    name: Outro (configuração manual)
+    env_vars: []

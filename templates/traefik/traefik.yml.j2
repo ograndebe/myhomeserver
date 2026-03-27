@@ -1,0 +1,67 @@
+# traefik.yml — configuração estática do Traefik
+# Gerado automaticamente pelo setup.py
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+  filePath: /var/log/traefik/traefik.log
+
+accessLog:
+  filePath: /var/log/traefik/access.log
+
+api:
+  dashboard: true
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: "{{ domain }}"
+            sans:
+              - "*.{{ domain }}"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: proxy
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "{{ acme_email }}"
+      storage: /etc/traefik/acme/acme.json
+      # Certificado wildcard via DNS challenge
+{% if dns_provider == "cloudflare" %}
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+{% elif dns_provider == "route53" %}
+      dnsChallenge:
+        provider: route53
+        resolvers:
+          - "8.8.8.8:53"
+{% else %}
+      # Configure manualmente o provider DNS:
+      # https://doc.traefik.io/traefik/https/acme/#providers
+      dnsChallenge:
+        provider: manual
+{% endif %}

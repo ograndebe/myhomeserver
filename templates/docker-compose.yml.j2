@@ -1,0 +1,215 @@
+# docker-compose.yml — gerado automaticamente pelo setup.py
+# NÃO edite este arquivo diretamente. Edite os templates e execute ./setup.py novamente.
+# Gerado em: {{ "{}" | format("now") }}
+
+networks:
+  proxy:
+    name: proxy
+    driver: bridge
+  internal:
+    name: internal
+    driver: bridge
+    internal: true
+
+volumes:
+  authentik_pg_data:
+  authentik_redis_data:
+{% if enable_nextcloud %}
+  nextcloud_db_data:
+  nextcloud_app_data:
+{% endif %}
+{% if enable_immich %}
+  immich_pg_data:
+{% endif %}
+
+services:
+
+  # ── Traefik ──────────────────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - {{ storage_path }}/traefik/acme:/etc/traefik/acme
+      - {{ storage_path }}/traefik/logs:/var/log/traefik
+    environment:
+{% if dns_provider == "cloudflare" %}
+      - CF_API_EMAIL=${CF_API_EMAIL}
+      - CF_API_KEY=${CF_API_KEY}
+{% elif dns_provider == "route53" %}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+{% endif %}
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.{{ domain }}`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=authentik@docker"
+
+  # ── AdGuard Home ─────────────────────────────────────────────────────────
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3000:3000/tcp"    # setup inicial (desabilitar após configuração)
+    volumes:
+      - {{ storage_path }}/adguard/work:/opt/adguardhome/work
+      - ./adguard/AdGuardHome.yaml:/opt/adguardhome/conf/AdGuardHome.yaml
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adguard.rule=Host(`dns.{{ domain }}`)"
+      - "traefik.http.routers.adguard.entrypoints=websecure"
+      - "traefik.http.routers.adguard.tls.certresolver=letsencrypt"
+      - "traefik.http.services.adguard.loadbalancer.server.port=3000"
+      - "traefik.http.routers.adguard.middlewares=authentik@docker"
+
+  # ── WireGuard ────────────────────────────────────────────────────────────
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: wireguard
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/Sao_Paulo}
+      - SERVERURL={{ domain }}
+      - SERVERPORT=51820
+      - PEERS=${WIREGUARD_PEERS:-laptop,phone}
+      - PEERDNS={{ local_ip }}   # aponta para o AdGuard local
+      - INTERNAL_SUBNET=10.13.13.0/24
+      - ALLOWEDIPS=10.13.13.0/24,{{ local_ip }}/32
+    ports:
+      - "51820:51820/udp"
+    volumes:
+      - {{ storage_path }}/wireguard/config:/config
+      - /lib/modules:/lib/modules:ro
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=false"
+
+  # ── Authentik (PostgreSQL) ────────────────────────────────────────────────
+  authentik-pg:
+    image: postgres:16-alpine
+    container_name: authentik-pg
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=authentik
+      - POSTGRES_PASSWORD=${AUTHENTIK_PG_PASSWORD}
+      - POSTGRES_DB=authentik
+    volumes:
+      - authentik_pg_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Authentik (Redis) ────────────────────────────────────────────────────
+  authentik-redis:
+    image: redis:alpine
+    container_name: authentik-redis
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Authentik (Server) ───────────────────────────────────────────────────
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2024.8
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      - AUTHENTIK_REDIS__HOST=authentik-redis
+      - AUTHENTIK_POSTGRESQL__HOST=authentik-pg
+      - AUTHENTIK_POSTGRESQL__USER=authentik
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${AUTHENTIK_PG_PASSWORD}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+      - AUTHENTIK_ERROR_REPORTING__ENABLED=false
+    volumes:
+      - {{ storage_path }}/authentik/media:/media
+      - {{ storage_path }}/authentik/custom-templates:/templates
+    networks:
+      - proxy
+      - internal
+    depends_on:
+      authentik-pg:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authentik.rule=Host(`auth.{{ domain }}`)"
+      - "traefik.http.routers.authentik.entrypoints=websecure"
+      - "traefik.http.routers.authentik.tls.certresolver=letsencrypt"
+      - "traefik.http.services.authentik.loadbalancer.server.port=9000"
+      # Middleware ForwardAuth — usado pelos outros serviços
+      - "traefik.http.middlewares.authentik.forwardauth.address=http://authentik-server:9000/outpost.goauthentik.io/auth/traefik"
+      - "traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version"
+
+  # ── Authentik (Worker) ───────────────────────────────────────────────────
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2024.8
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      - AUTHENTIK_REDIS__HOST=authentik-redis
+      - AUTHENTIK_POSTGRESQL__HOST=authentik-pg
+      - AUTHENTIK_POSTGRESQL__USER=authentik
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${AUTHENTIK_PG_PASSWORD}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{ storage_path }}/authentik/media:/media
+      - {{ storage_path }}/authentik/custom-templates:/templates
+    networks:
+      - internal
+    depends_on:
+      authentik-pg:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+
+{% if enable_jellyfin %}
+  {% include 'services/jellyfin.j2' %}
+  {% include 'services/arr-stack.j2' %}
+{% endif %}
+{% if enable_nextcloud %}
+  {% include 'services/nextcloud.j2' %}
+{% endif %}
+{% if enable_immich %}
+  {% include 'services/immich.j2' %}
+{% endif %}

@@ -1,157 +1,75 @@
-# 🏠 Home Server Stack
+# Homeserver
 
-Projeto de infraestrutura para home server baseado em Docker, com roteamento por subdomínio, HTTPS automático via Let's Encrypt e VPN para acesso externo.
-
-## Visão Geral
-
-```
-Internet
-    │
-    ▼ (porta 51820/UDP)
-[WireGuard] ─── VPN para dispositivos externos
-    │
-    ▼
-[Traefik] ─── Reverse proxy + TLS automático
-    │
-    ├── app1.seudominio.com
-    ├── app2.seudominio.com
-    ├── adguard.seudominio.com
-    └── traefik.seudominio.com (dashboard)
-
-[AdGuard Home] ─── DNS local com wildcard
-    └── *.seudominio.com → IP do servidor
-```
-
-### Componentes
-
-| Serviço | Função |
-|---|---|
-| **Traefik** | Reverse proxy central. Roteia por subdomínio via labels Docker. Emite e renova certificados TLS automaticamente. |
-| **AdGuard Home** | DNS local. Resolve `*.seudominio.com` para o IP interno do servidor, permitindo que dispositivos da rede usem HTTPS sem expor nada à internet. |
-| **WireGuard** | VPN leve. Expõe uma única porta UDP. Clientes externos se conectam e passam a usar o AdGuard como DNS, operando como se estivessem na rede local. |
-| **app1 / app2** | Webservers Nginx de demonstração para validar o roteamento por subdomínio. Substituir por serviços reais nas próximas iterações. |
+Setup reproduzível de home server com Docker Compose.
+Clone, responda algumas perguntas, suba os serviços.
 
 ## Pré-requisitos
 
-- Docker e Docker Compose instalados no servidor
-- Domínio real apontado para o Cloudflare (para o DNS Challenge do Let's Encrypt)
-- Token da API do Cloudflare com permissão `Zone / DNS / Edit`
-
-> **Por que Cloudflare?**  
-> O Let's Encrypt emite certificados wildcard (`*.seudominio.com`) via DNS Challenge — sem precisar abrir a porta 80 para a internet. O Traefik suporta vários provedores DNS; Cloudflare é o padrão deste projeto. Para trocar, edite `dnsChallenge.provider` em `src/traefik/traefik.yml`.
-
-## Estrutura do Projeto
-
-```
-homeserver/
-├── build.sh              ← Script de build (rode aqui)
-├── .gitignore
-├── README.md
-└── src/                  ← Templates com placeholders
-    ├── .env
-    ├── docker-compose.yml
-    └── traefik/
-        └── traefik.yml
-```
-
-Após o build:
-
-```
-homeserver/
-├── build/                ← Artefato pronto para deploy (git-ignored)
-│   ├── .env              ← Preenchido com domínio, IP e senhas
-│   ├── docker-compose.yml
-│   └── traefik/
-│       └── traefik.yml
-└── credentials.txt       ← Senhas geradas (git-ignored, guarde com segurança)
-```
-
-## Como Usar
-
-### 1. Preparar o servidor
-
-Libere a porta 53 sem desabilitar o `systemd-resolved`:
+- Linux (Ubuntu 22.04+ recomendado)
+- Docker + Docker Compose
+- Domínio real com acesso ao painel DNS
+- [`uv`](https://docs.astral.sh/uv/) instalado
 
 ```bash
-sudo sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf
-sudo systemctl restart systemd-resolved
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. Gerar o artefato de build
-
-Na sua máquina local (ou diretamente no servidor):
+## Uso
 
 ```bash
-./build.sh
+git clone git@github.com:usuario/homeserver
+cd homeserver
+chmod +x setup.py
+./setup.py
+docker compose -f output/docker-compose.yml up -d
 ```
 
-O script irá perguntar:
-- Domínio (ex: `meuserver.com.br`)
-- IP local do servidor (ex: `192.168.1.100`)
-- E-mail para Let's Encrypt
-- Cloudflare API Token
-- Usuário do Traefik Dashboard
+## Serviços incluídos
 
-Senhas são geradas automaticamente e salvas em `credentials.txt`.
+### Obrigatórios
+| Serviço     | Função                                              | URL                     |
+|-------------|-----------------------------------------------------|-------------------------|
+| Traefik     | Reverse proxy + TLS automático (wildcard)           | `traefik.dominio.com`   |
+| AdGuard     | DNS local — resolve `*.dominio.com` para IP interno | `dns.dominio.com`       |
+| WireGuard   | VPN — acesso externo como se estivesse na rede      | porta UDP 51820         |
+| Authentik   | SSO centralizado para todos os serviços             | `auth.dominio.com`      |
 
-### 3. Deploy no servidor
+### Opcionais (selecionáveis no setup)
+| Serviço                  | Função                                       | URL                        |
+|--------------------------|----------------------------------------------|----------------------------|
+| Jellyfin                 | Media server                                 | `jellyfin.dominio.com`     |
+| Radarr                   | Automação de filmes                          | `radarr.dominio.com`       |
+| Sonarr                   | Automação de séries                          | `sonarr.dominio.com`       |
+| Prowlarr                 | Indexador central                            | `prowlarr.dominio.com`     |
+| qBittorrent              | Cliente de download                          | `qbit.dominio.com`         |
+| Bazarr                   | Download automático de legendas              | `bazarr.dominio.com`       |
+| Nextcloud                | Storage, calendário, documentos              | `nextcloud.dominio.com`    |
+| Immich                   | Galeria e backup de fotos                    | `photos.dominio.com`       |
+
+> Jellyfin inclui a stack *arr completa automaticamente.
+
+## Como funciona o acesso por nome
+
+```
+Na rede local (sem VPN):
+  Browser → nextcloud.dominio.com
+         → AdGuard resolve para o IP interno
+         → Traefik roteia para o container
+         → TLS válido (Let's Encrypt wildcard)
+
+De fora (com WireGuard):
+  Dispositivo → VPN → rede interna → mesmo fluxo
+```
+
+## Documentação
+
+- `docs/post-setup.md` — configuração pós-instalação
+- `docs/authentik-setup.md` — integração SSO com cada serviço
+- `CONTEXT.md` — especificação técnica completa do projeto
+
+## Recriar configuração
 
 ```bash
-# Copie a pasta build/ para o servidor
-scp -r build/ usuario@192.168.1.100:~/homeserver
-
-# No servidor
-cd ~/homeserver
-docker compose up -d
+./setup.py
+docker compose -f output/docker-compose.yml up -d --force-recreate
 ```
-
-### 4. Configurar AdGuard Home
-
-1. Acesse `http://IP-DO-SERVIDOR:3000` para o setup inicial
-2. Configure a senha admin (use a de `credentials.txt`)
-3. Vá em **Filters → DNS Rewrites** e adicione:
-   - Domínio: `*.seudominio.com`
-   - Resposta: `192.168.1.X` (IP do servidor)
-4. Após configurado, feche a porta 3000 removendo-a do `docker-compose.yml`
-
-### 5. Configurar DNS na rede
-
-No roteador (DHCP settings), aponte o DNS primário para o IP do servidor.  
-Todos os dispositivos da casa passarão a usar o AdGuard automaticamente.
-
-### 6. Configurar WireGuard (acesso externo)
-
-Os arquivos de configuração para cada peer são gerados automaticamente em:
-```
-build/wireguard/peer1/peer1.conf
-build/wireguard/peer2/peer2.conf
-...
-```
-
-Importe o arquivo `.conf` no cliente WireGuard do dispositivo externo. O DNS do túnel já vem apontado para o AdGuard, então `*.seudominio.com` funciona fora de casa igual a dentro.
-
-## Adicionando Novos Serviços
-
-Para adicionar um serviço (ex: Nextcloud), basta incluir no `src/docker-compose.yml` com as labels do Traefik:
-
-```yaml
-nextcloud:
-  image: nextcloud
-  labels:
-    - "traefik.enable=true"
-    - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.${DOMAIN}`)"
-    - "traefik.http.routers.nextcloud.entrypoints=websecure"
-    - "traefik.http.routers.nextcloud.tls.certresolver=letsencrypt"
-    - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
-  networks:
-    - proxy
-```
-
-Nenhuma outra configuração é necessária — o certificado wildcard já cobre o novo subdomínio.
-
-## Segurança
-
-- `credentials.txt` e `build/` estão no `.gitignore`. **Nunca commite senhas.**
-- O WireGuard expõe apenas a porta `51820/UDP`. Nenhuma outra porta precisa estar aberta no roteador.
-- O Let's Encrypt usa DNS Challenge — a porta 80 **não** precisa ser exposta à internet.
-- O Traefik Dashboard é protegido por autenticação básica.

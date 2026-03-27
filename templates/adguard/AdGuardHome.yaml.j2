@@ -1,0 +1,95 @@
+# AdGuardHome.yaml — configuração inicial do AdGuard
+# Gerado automaticamente pelo setup.py
+# Após o primeiro boot, o AdGuard pode ser gerenciado via UI em https://dns.{{ domain }}
+
+http:
+  pprof:
+    port: 6060
+    enabled: false
+  address: 0.0.0.0:3000
+  session_ttl: 720h
+
+users:
+  - name: admin
+    password: $2y$10$placeholder  # Será definido no primeiro acesso em :3000
+
+auth_attempts: 5
+block_auth_min: 15
+
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  # Rewrite: resolve *.{{ domain }} para o IP interno (tráfego nunca sai da rede)
+  rewrites:
+    - domain: "*.{{ domain }}"
+      answer: "{{ local_ip }}"
+    - domain: "{{ domain }}"
+      answer: "{{ local_ip }}"
+  upstream_dns:
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+  bootstrap_dns:
+    - 1.1.1.1
+    - 8.8.8.8
+  fallback_dns:
+    - 8.8.8.8:53
+  cache_size: 4194304
+  cache_ttl_min: 0
+  cache_ttl_max: 0
+  cache_optimistic: false
+  upstream_timeout: 10s
+  blocked_response_ttl: 10
+  protection_enabled: true
+  blocking_mode: default
+  blocking_ipv4: ""
+  blocking_ipv6: ""
+  edns_cs_enabled: false
+  edns_cs_use_custom: false
+  edns_cs_custom_ip: ""
+  dnssec_enabled: false
+  aaaa_disabled: false
+  all_servers: false
+  fastest_addr: false
+  fastest_timeout: 1s
+  allowed_clients: []
+  disallowed_clients: []
+  blocked_hosts:
+    - version.bind
+    - id.server
+    - hostname.bind
+
+tls:
+  enabled: false   # TLS gerenciado pelo Traefik
+
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://adaway.org/hosts.txt
+    name: AdAway Default Blocklist
+    id: 2
+
+filtering:
+  blocking_ipv6: false
+  blocked_services:
+    schedule:
+      time_zone: America/Sao_Paulo
+    ids: []
+  protection_enabled: true
+  filtering_enabled: true
+  parental_enabled: false
+  safe_search:
+    enabled: false
+
+log:
+  enabled: true
+  file: ""
+  max_backups: 0
+  max_size: 100
+  max_age: 3
+  compress: false
+  local_time: true
+  verbose: false

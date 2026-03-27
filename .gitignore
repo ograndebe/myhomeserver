@@ -1,3 +1,12 @@
-build/
-credentials.txt
-*.local.env
+# Arquivos gerados — não commitar
+output/
+
+# Secrets
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
