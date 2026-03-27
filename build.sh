@@ -65,7 +65,6 @@ gen_htpasswd() {
   local user="$1"
   local pass="$2"
   docker run --rm httpd:alpine htpasswd -nbB "$user" "$pass" 2>/dev/null \
-    | sed 's/\$/\$\$/g' \
     || error "Falha ao gerar hash htpasswd."
 }
 
@@ -156,19 +155,17 @@ ensure_build_dir() {
 }
 
 create_env_file() {
-  cat > "$BUILD_DIR/.env" << EOF
-DOMAIN=$DOMAIN
-SERVER_IP=$SERVER_IP
-DATA_DIR=$DATA_DIR
-CLOUDFLARE_EMAIL=$CLOUDFLARE_EMAIL
-CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN
-TRAEFIK_DASHBOARD_USER=$TRAEFIK_DASHBOARD_USER
-TRAEFIK_DASHBOARD_PASSWORD=$TRAEFIK_DASHBOARD_PASSWORD
-TRAEFIK_DASHBOARD_USERS=$TRAEFIK_DASHBOARD_USERS
-ADGUARD_ADMIN_PASSWORD=$ADGUARD_ADMIN_PASSWORD
-ADGUARD_ADMIN_PASSWORD_HASH=$ADGUARD_ADMIN_PASSWORD_HASH
-WIREGUARD_PEER_COUNT=$WIREGUARD_PEER_COUNT
-EOF
+  {
+    printf '%s=%s\n' "DOMAIN" "$DOMAIN"
+    printf '%s=%s\n' "SERVER_IP" "$SERVER_IP"
+    printf '%s=%s\n' "DATA_DIR" "$DATA_DIR"
+    printf '%s=%s\n' "CLOUDFLARE_EMAIL" "$CLOUDFLARE_EMAIL"
+    printf '%s=%s\n' "CLOUDFLARE_API_TOKEN" "$CLOUDFLARE_API_TOKEN"
+    printf '%s=%s\n' "TRAEFIK_DASHBOARD_USER" "$TRAEFIK_DASHBOARD_USER"
+    printf '%s=%s\n' "TRAEFIK_DASHBOARD_PASSWORD" "$TRAEFIK_DASHBOARD_PASSWORD"
+    printf '%s=%s\n' "ADGUARD_ADMIN_PASSWORD" "$ADGUARD_ADMIN_PASSWORD"
+    printf '%s=%s\n' "WIREGUARD_PEER_COUNT" "$WIREGUARD_PEER_COUNT"
+  } > "$BUILD_DIR/.env"
   success "build/.env criado."
 }
 
@@ -178,9 +175,7 @@ generate_passwords() {
     info "Gerando senhas..."
     TRAEFIK_DASHBOARD_PASSWORD=$(gen_password)
     ADGUARD_ADMIN_PASSWORD=$(gen_password)
-    TRAEFIK_DASHBOARD_USERS=$(gen_htpasswd "$TRAEFIK_DASHBOARD_USER" "$TRAEFIK_DASHBOARD_PASSWORD")
-    ADGUARD_ADMIN_PASSWORD_HASH=$(gen_adguard_hash "$ADGUARD_ADMIN_PASSWORD")
-    export TRAEFIK_DASHBOARD_USER TRAEFIK_DASHBOARD_PASSWORD TRAEFIK_DASHBOARD_USERS ADGUARD_ADMIN_PASSWORD ADGUARD_ADMIN_PASSWORD_HASH
+    export TRAEFIK_DASHBOARD_USER TRAEFIK_DASHBOARD_PASSWORD ADGUARD_ADMIN_PASSWORD
     success "Senhas geradas."
   fi
 }
@@ -193,6 +188,8 @@ load_env() {
   # shellcheck source=/dev/null
   source "$BUILD_DIR/.env"
   set +a
+  TRAEFIK_DASHBOARD_USERS=$(gen_htpasswd "$TRAEFIK_DASHBOARD_USER" "$TRAEFIK_DASHBOARD_PASSWORD")
+  ADGUARD_ADMIN_PASSWORD_HASH=$(gen_adguard_hash "$ADGUARD_ADMIN_PASSWORD")
 }
 
 process_templates() {
@@ -221,7 +218,17 @@ process_templates() {
       mkdir -p "$output_dir"
     fi
 
+    local hash_value="$ADGUARD_ADMIN_PASSWORD_HASH"
+    local users_value="$TRAEFIK_DASHBOARD_USERS"
+    ADGUARD_ADMIN_PASSWORD_HASH="__ADGUARD_HASH__"
+    TRAEFIK_DASHBOARD_USERS="__TRAEFIK_USERS__"
+    export ADGUARD_ADMIN_PASSWORD_HASH TRAEFIK_DASHBOARD_USERS
     envsubst < "$tmpl" > "$output_path"
+    sed -i \
+      -e "s/__ADGUARD_HASH__/$hash_value/g" \
+      -e "s/__TRAEFIK_USERS__/$users_value/g" \
+      "$output_path"
+    unset ADGUARD_ADMIN_PASSWORD_HASH TRAEFIK_DASHBOARD_USERS
     success "  $relative_path → build/$relative_path"
   done < <(find templates/ -name "*.tmpl" -print0)
 
