@@ -42,6 +42,7 @@ CONFIG = ROOT / "config" / "services.yml"
 
 # ── Descoberta do ambiente ────────────────────────────────────────────────────
 
+
 def get_local_ip() -> str:
     """Descobre o IP local do servidor."""
     try:
@@ -58,9 +59,13 @@ def get_disk_info(path: str) -> dict:
     """Retorna informações de disco para o caminho informado."""
     try:
         usage = shutil.disk_usage(path)
-        free_gb = usage.free / (1024 ** 3)
-        total_gb = usage.total / (1024 ** 3)
-        return {"free_gb": round(free_gb, 1), "total_gb": round(total_gb, 1), "ok": True}
+        free_gb = usage.free / (1024**3)
+        total_gb = usage.total / (1024**3)
+        return {
+            "free_gb": round(free_gb, 1),
+            "total_gb": round(total_gb, 1),
+            "ok": True,
+        }
     except Exception:
         return {"free_gb": 0, "total_gb": 0, "ok": False}
 
@@ -69,14 +74,18 @@ def check_docker() -> dict:
     """Verifica se Docker e Compose estão instalados."""
     result = {"docker": None, "compose": None}
     try:
-        r = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"],
-                           capture_output=True, text=True)
+        r = subprocess.run(
+            ["docker", "version", "--format", "{{.Server.Version}}"],
+            capture_output=True,
+            text=True,
+        )
         result["docker"] = r.stdout.strip() if r.returncode == 0 else None
     except FileNotFoundError:
         pass
     try:
-        r = subprocess.run(["docker", "compose", "version", "--short"],
-                           capture_output=True, text=True)
+        r = subprocess.run(
+            ["docker", "compose", "version", "--short"], capture_output=True, text=True
+        )
         result["compose"] = r.stdout.strip() if r.returncode == 0 else None
     except FileNotFoundError:
         pass
@@ -87,56 +96,51 @@ def generate_secret(length: int = 32) -> str:
     """Gera uma string aleatória segura."""
     import secrets
     import string
+
     alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 # ── Perguntas interativas ─────────────────────────────────────────────────────
 
+
 def ask_questions(services_config: dict) -> dict:
     """Faz as perguntas interativas e retorna o contexto para os templates."""
     console.print()
-    console.print(Panel.fit(
-        "[bold cyan]Homeserver Setup[/bold cyan]\n"
-        "[dim]Responda as perguntas para gerar sua configuração[/dim]",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold cyan]Homeserver Setup[/bold cyan]\n"
+            "[dim]Responda as perguntas para gerar sua configuração[/dim]",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     # Domínio
     domain = questionary.text(
         "Qual é o domínio principal do servidor?",
-        validate=lambda v: True if "." in v else "Informe um domínio válido (ex: meusite.com)"
+        validate=lambda v: (
+            True if "." in v else "Informe um domínio válido (ex: meusite.com)"
+        ),
     ).ask()
     if not domain:
         sys.exit(0)
 
-    # Provedor DNS
-    dns_providers = {p["id"]: p for p in services_config["dns_providers"]}
-    dns_choice = questionary.select(
-        "Qual o provedor DNS do seu domínio? (necessário para certificado wildcard TLS)",
-        choices=[
-            questionary.Choice(p["name"], value=p["id"])
-            for p in services_config["dns_providers"]
-        ]
-    ).ask()
-    if not dns_choice:
+    # Credenciais Cloudflare
+    console.print(
+        "\n[dim]Credenciais Cloudflare (usado pelo Traefik para emitir certificado wildcard TLS):[/dim]"
+    )
+    cf_email = questionary.text("  CF_API_EMAIL:").ask()
+    if not cf_email:
         sys.exit(0)
-
-    # Credenciais DNS
-    dns_env_vars = {}
-    provider = dns_providers[dns_choice]
-    if provider["env_vars"]:
-        console.print(f"\n[dim]Credenciais para {provider['name']} (usado pelo Traefik para emitir certificado wildcard):[/dim]")
-        for var in provider["env_vars"]:
-            val = questionary.password(f"  {var}:").ask()
-            if val:
-                dns_env_vars[var] = val
+    cf_api_key = questionary.password("  CF_API_KEY:").ask()
+    if not cf_api_key:
+        sys.exit(0)
 
     # E-mail Let's Encrypt
     acme_email = questionary.text(
         "E-mail para o Let's Encrypt (notificações de renovação de certificado):",
-        validate=lambda v: True if "@" in v else "Informe um e-mail válido"
+        validate=lambda v: True if "@" in v else "Informe um e-mail válido",
     ).ask()
     if not acme_email:
         sys.exit(0)
@@ -144,7 +148,7 @@ def ask_questions(services_config: dict) -> dict:
     # Disco/storage
     storage_path = questionary.text(
         "Caminho para volumes persistentes (onde os dados serão armazenados):",
-        default="/opt/homeserver/data"
+        default="/opt/homeserver/data",
     ).ask()
     if not storage_path:
         sys.exit(0)
@@ -152,23 +156,20 @@ def ask_questions(services_config: dict) -> dict:
     # Serviços opcionais
     optional_choices = [
         questionary.Choice(
-            f"{s['name']} — {s['description']}",
-            value=s["id"],
-            checked=False
+            f"{s['name']} — {s['description']}", value=s["id"], checked=False
         )
         for s in services_config["optional"]
     ]
     selected_optional = questionary.checkbox(
-        "Quais serviços opcionais deseja ativar?",
-        choices=optional_choices
+        "Quais serviços opcionais deseja ativar?", choices=optional_choices
     ).ask()
     if selected_optional is None:
         sys.exit(0)
 
     return {
         "domain": domain,
-        "dns_provider": dns_choice,
-        "dns_env_vars": dns_env_vars,
+        "cf_email": cf_email,
+        "cf_api_key": cf_api_key,
         "acme_email": acme_email,
         "storage_path": storage_path,
         "optional_services": selected_optional or [],
@@ -180,13 +181,16 @@ def ask_questions(services_config: dict) -> dict:
 
 # ── Checks do ambiente ────────────────────────────────────────────────────────
 
+
 def run_environment_checks(answers: dict) -> dict:
     """Descobre informações do ambiente e exibe um resumo."""
     console.print()
     console.print("[bold]Verificando o ambiente...[/bold]")
 
     local_ip = get_local_ip()
-    disk = get_disk_info(answers["storage_path"] if Path(answers["storage_path"]).exists() else "/")
+    disk = get_disk_info(
+        answers["storage_path"] if Path(answers["storage_path"]).exists() else "/"
+    )
     docker = check_docker()
 
     table = Table(show_header=False, box=None, padding=(0, 2))
@@ -196,14 +200,23 @@ def run_environment_checks(answers: dict) -> dict:
     table.add_row("IP local detectado", f"[cyan]{local_ip}[/cyan]")
 
     if disk["ok"]:
-        table.add_row("Espaço disponível", f"[cyan]{disk['free_gb']}GB[/cyan] de {disk['total_gb']}GB em {answers['storage_path']}")
+        table.add_row(
+            "Espaço disponível",
+            f"[cyan]{disk['free_gb']}GB[/cyan] de {disk['total_gb']}GB em {answers['storage_path']}",
+        )
     else:
-        table.add_row("Espaço disponível", f"[yellow]Não foi possível verificar {answers['storage_path']}[/yellow]")
+        table.add_row(
+            "Espaço disponível",
+            f"[yellow]Não foi possível verificar {answers['storage_path']}[/yellow]",
+        )
 
     if docker["docker"]:
         table.add_row("Docker", f"[green]✔[/green] {docker['docker']}")
     else:
-        table.add_row("Docker", "[red]✘ não encontrado — instale em https://docs.docker.com/engine/install/[/red]")
+        table.add_row(
+            "Docker",
+            "[red]✘ não encontrado — instale em https://docs.docker.com/engine/install/[/red]",
+        )
 
     if docker["compose"]:
         table.add_row("Docker Compose", f"[green]✔[/green] {docker['compose']}")
@@ -214,7 +227,9 @@ def run_environment_checks(answers: dict) -> dict:
     console.print()
 
     if not docker["docker"]:
-        console.print("[red]Docker é necessário. Instale e execute o setup novamente.[/red]")
+        console.print(
+            "[red]Docker é necessário. Instale e execute o setup novamente.[/red]"
+        )
         sys.exit(1)
 
     return {
@@ -225,6 +240,7 @@ def run_environment_checks(answers: dict) -> dict:
 
 
 # ── Geração de arquivos ───────────────────────────────────────────────────────
+
 
 def render_templates(context: dict) -> None:
     """Renderiza todos os templates Jinja2 e salva em output/."""
@@ -240,7 +256,7 @@ def render_templates(context: dict) -> None:
 
     files = [
         ("docker-compose.yml.j2", OUTPUT / "docker-compose.yml"),
-        (".env.j2",               OUTPUT / ".env"),
+        (".env.j2", OUTPUT / ".env"),
         ("traefik/traefik.yml.j2", OUTPUT / "traefik" / "traefik.yml"),
         ("adguard/AdGuardHome.yaml.j2", OUTPUT / "adguard" / "AdGuardHome.yaml"),
     ]
@@ -260,16 +276,17 @@ def print_next_steps(context: dict) -> None:
     """Exibe as instruções pós-geração."""
     domain = context["domain"]
     console.print()
-    console.print(Panel(
-        f"""[bold green]Configuração gerada com sucesso![/bold green]
+    console.print(
+        Panel(
+            f"""[bold green]Configuração gerada com sucesso![/bold green]
 
 [bold]Próximos passos:[/bold]
 
 [cyan]1.[/cyan] Crie um registro DNS wildcard no seu provedor:
-   [dim]*.{domain}  →  A  →  {context['local_ip']}[/dim]
+   [dim]*.{domain}  →  A  →  {context["local_ip"]}[/dim]
 
 [cyan]2.[/cyan] Configure o AdGuard para resolver o domínio internamente:
-   [dim]Acesse http://{context['local_ip']}:3000 após o primeiro boot[/dim]
+   [dim]Acesse http://{context["local_ip"]}:3000 após o primeiro boot[/dim]
 
 [cyan]3.[/cyan] Suba os serviços:
    [dim]docker compose -f output/docker-compose.yml up -d[/dim]
@@ -280,12 +297,14 @@ def print_next_steps(context: dict) -> None:
 
 [cyan]5.[/cyan] Leia docs/post-setup.md para configurações adicionais
 """,
-        title="[bold]Setup concluído[/bold]",
-        border_style="green"
-    ))
+            title="[bold]Setup concluído[/bold]",
+            border_style="green",
+        )
+    )
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 @click.command()
 @click.option("--dry-run", is_flag=True, help="Mostra o contexto sem gerar arquivos")
@@ -303,15 +322,22 @@ def main(dry_run: bool):
         # Secrets gerados automaticamente
         "authentik_secret_key": generate_secret(50),
         "authentik_pg_password": generate_secret(32),
-        "nextcloud_db_password": generate_secret(32) if answers["enable_nextcloud"] else "",
+        "nextcloud_db_password": generate_secret(32)
+        if answers["enable_nextcloud"]
+        else "",
         "immich_db_password": generate_secret(32) if answers["enable_immich"] else "",
         "wireguard_peers": "laptop,phone",  # default, usuário pode editar no .env
     }
 
     if dry_run:
         import json
+
         # Omite secrets do dry-run
-        safe = {k: v for k, v in context.items() if "password" not in k and "secret" not in k}
+        safe = {
+            k: v
+            for k, v in context.items()
+            if "password" not in k and "secret" not in k
+        }
         console.print_json(json.dumps(safe, indent=2))
         return
 

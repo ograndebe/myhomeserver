@@ -47,21 +47,8 @@ certificatesResolvers:
     acme:
       email: "{{ acme_email }}"
       storage: /etc/traefik/acme/acme.json
-      # Certificado wildcard via DNS challenge
-{% if dns_provider == "cloudflare" %}
       dnsChallenge:
         provider: cloudflare
         resolvers:
           - "1.1.1.1:53"
           - "8.8.8.8:53"
-{% elif dns_provider == "route53" %}
-      dnsChallenge:
-        provider: route53
-        resolvers:
-          - "8.8.8.8:53"
-{% else %}
-      # Configure manualmente o provider DNS:
-      # https://doc.traefik.io/traefik/https/acme/#providers
-      dnsChallenge:
-        provider: manual
-{% endif %}

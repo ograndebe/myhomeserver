@@ -1,6 +1,5 @@
 # docker-compose.yml — gerado automaticamente pelo setup.py
 # NÃO edite este arquivo diretamente. Edite os templates e execute ./setup.py novamente.
-# Gerado em: {{ "{}" | format("now") }}
 
 networks:
   proxy:
@@ -38,14 +37,8 @@ services:
       - {{ storage_path }}/traefik/acme:/etc/traefik/acme
       - {{ storage_path }}/traefik/logs:/var/log/traefik
     environment:
-{% if dns_provider == "cloudflare" %}
       - CF_API_EMAIL=${CF_API_EMAIL}
       - CF_API_KEY=${CF_API_KEY}
-{% elif dns_provider == "route53" %}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
-{% endif %}
     networks:
       - proxy
     labels:
