@@ -137,6 +137,27 @@ def ask_questions(services_config: dict) -> dict:
     if not cf_api_key:
         sys.exit(0)
 
+    # Credenciais Authentik
+    console.print("\n[dim]Credenciais do admin Authentik (SSO):[/dim]")
+    authentik_email = questionary.text(
+        "  E-mail do admin:", default=f"admin@{domain}"
+    ).ask()
+    if not authentik_email:
+        sys.exit(0)
+    authentik_user = questionary.text(
+        "  Username do admin:", default="administrator"
+    ).ask()
+    if not authentik_user:
+        sys.exit(0)
+    authentik_password = questionary.password(
+        "  Senha do admin (mínimo 8 caracteres):",
+        validate=lambda v: (
+            True if len(v) >= 8 else "A senha deve ter pelo menos 8 caracteres"
+        ),
+    ).ask()
+    if not authentik_password:
+        sys.exit(0)
+
     # E-mail Let's Encrypt
     acme_email = questionary.text(
         "E-mail para o Let's Encrypt (notificações de renovação de certificado):",
@@ -172,6 +193,9 @@ def ask_questions(services_config: dict) -> dict:
         "cf_api_key": cf_api_key,
         "acme_email": acme_email,
         "storage_path": storage_path,
+        "authentik_email": authentik_email,
+        "authentik_user": authentik_user,
+        "authentik_password": authentik_password,
         "optional_services": selected_optional or [],
         "enable_jellyfin": "jellyfin" in (selected_optional or []),
         "enable_nextcloud": "nextcloud" in (selected_optional or []),
@@ -253,8 +277,6 @@ def create_data_directories(context: dict) -> None:
         "adguard/work",
         "adguard/conf",
         "wireguard/config",
-        "authentik/media/public",
-        "authentik/media/tls",
         "authentik/custom-templates",
     ]
 
@@ -301,7 +323,7 @@ def create_data_directories(context: dict) -> None:
         full_path = storage / dir_path
         try:
             full_path.mkdir(parents=True, exist_ok=True)
-            if "authentik" in dir_path or "adguard" in dir_path:
+            if "adguard" in dir_path:
                 full_path.chmod(0o777)
             console.print(f"  [green]✔[/green] {dir_path}")
         except Exception as e:
@@ -356,17 +378,19 @@ def print_next_steps(context: dict) -> None:
 [cyan]1.[/cyan] Crie um registro DNS wildcard no seu provedor:
    [dim]*.{domain}  →  A  →  {context["local_ip"]}[/dim]
 
-[cyan]2.[/cyan] Configure o AdGuard para resolver o domínio internamente:
-   [dim]Acesse http://{context["local_ip"]}:3000 após o primeiro boot[/dim]
-
-[cyan]3.[/cyan] Suba os serviços:
+[cyan]2.[/cyan] Suba os serviços:
    [dim]docker compose -f output/docker-compose.yml up -d[/dim]
 
-[cyan]4.[/cyan] Configure o Authentik:
-   [dim]https://auth.{domain}[/dim]
-   [dim]Veja docs/authentik-setup.md para o passo a passo[/dim]
+[cyan]3.[/cyan] Aguarde ~2 minutos para as migrations do Authentik completarem
 
-[cyan]5.[/cyan] Leia docs/post-setup.md para configurações adicionais
+[cyan]4.[/cyan] Acesse os serviços:
+   [dim]- Authentik: https://auth.{domain}[/dim]
+   [dim]- AdGuard: https://dns.{domain} (user: {context["authentik_email"]})[/dim]
+   [dim]- Traefik: https://traefik.{domain}[/dim]
+   [dim]- Teste: https://test.{domain}[/dim]
+
+[cyan]5.[/cyan] Configuração adicional:
+   [dim]Veja docs/post-setup.md[/dim]
 """,
             title="[bold]Setup concluído[/bold]",
             border_style="green",
