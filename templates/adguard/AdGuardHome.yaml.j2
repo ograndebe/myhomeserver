@@ -20,12 +20,40 @@ dns:
   bind_hosts:
     - 0.0.0.0
   port: 53
-  # Rewrite: resolve *.{{ domain }} para o IP interno (tráfego nunca sai da rede)
   rewrites:
-    - domain: "*.{{ domain }}"
-      answer: "{{ local_ip }}"
+    # Domínio principal e curinga
     - domain: "{{ domain }}"
       answer: "{{ local_ip }}"
+    - domain: "*.{{ domain }}"
+      answer: "{{ local_ip }}"
+{% if enable_jellyfin %}
+    # Jellyfin + Stack *arr
+    - domain: "jellyfin.{{ domain }}"
+      answer: "{{ local_ip }}"
+    - domain: "radarr.{{ domain }}"
+      answer: "{{ local_ip }}"
+    - domain: "sonarr.{{ domain }}"
+      answer: "{{ local_ip }}"
+    - domain: "prowlarr.{{ domain }}"
+      answer: "{{ local_ip }}"
+    - domain: "bazarr.{{ domain }}"
+      answer: "{{ local_ip }}"
+{% endif %}
+{% if enable_nextcloud %}
+    # Nextcloud
+    - domain: "files.{{ domain }}"
+      answer: "{{ local_ip }}"
+{% endif %}
+{% if enable_immich %}
+    # Immich
+    - domain: "photos.{{ domain }}"
+      answer: "{{ local_ip }}"
+{% endif %}
+{% if enable_static_page %}
+    # Static Page
+    - domain: "test.{{ domain }}"
+      answer: "{{ local_ip }}"
+{% endif %}
   upstream_dns:
     - https://dns.cloudflare.com/dns-query
     - https://dns.google/dns-query
@@ -73,7 +101,6 @@ filters:
     id: 2
 
 filtering:
-  blocking_ipv6: false
   blocked_services:
     schedule:
       time_zone: America/Sao_Paulo

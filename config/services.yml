@@ -7,26 +7,31 @@ mandatory:
     name: Traefik
     description: Reverse proxy com TLS automático via Let's Encrypt
     ports: [80, 443]
+    subdomain: traefik
 
   - id: adguard
     name: AdGuard Home
     description: DNS local com bloqueio de anúncios
     ports: [53, 3000]
+    subdomain: dns
 
   - id: wireguard
     name: WireGuard
     description: VPN para acesso externo à rede interna
     ports: [51820]
+    subdomain: vpn
 
   - id: authentik
     name: Authentik
     description: SSO centralizado — autenticação para todos os serviços
     ports: []  # exposto apenas via Traefik
+    subdomain: auth
 
 optional:
   - id: jellyfin
     name: "Jellyfin + Stack *arr"
     description: Media server com automação completa de downloads
+    subdomain: jellyfin
     includes:
       - radarr
       - sonarr
@@ -34,15 +39,28 @@ optional:
       - qbittorrent
       - bazarr
     ports: []
+    subdomains:
+      - { subdomain: radarr, name: Radarr }
+      - { subdomain: sonarr, name: Sonarr }
+      - { subdomain: prowlarr, name: Prowlarr }
+      - { subdomain: bazarr, name: Bazarr }
 
   - id: nextcloud
     name: Nextcloud
     description: Storage pessoal, calendário, contatos e documentos
+    subdomain: files
     ports: []
 
   - id: immich
     name: Immich
     description: Galeria e backup de fotos/vídeos (alternativa ao Google Photos)
+    subdomain: photos
+    ports: []
+
+  - id: static-page
+    name: Static Page
+    description: Página HTML estática para testes do Traefik
+    subdomain: test
     ports: []
 
 dns_providers:

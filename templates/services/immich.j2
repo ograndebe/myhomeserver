@@ -48,7 +48,7 @@
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.immich.rule=Host(`photos.{{ domain }}`)"
+      - "traefik.http.routers.immich.rule=Host('photos.{{ domain }}')"
       - "traefik.http.routers.immich.entrypoints=websecure"
       - "traefik.http.routers.immich.tls.certresolver=letsencrypt"
       - "traefik.http.services.immich.loadbalancer.server.port=3001"

@@ -1,0 +1,15 @@
+  # ── Static Page (Test) ─────────────────────────────────────────────────────
+  static-page:
+    image: nginx:alpine
+    container_name: static-page
+    restart: unless-stopped
+    volumes:
+      - {{ storage_path }}/static-page/html:/usr/share/nginx/html:ro
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.static-page.rule=Host('test.{{ domain }}')"
+      - "traefik.http.routers.static-page.entrypoints=websecure"
+      - "traefik.http.routers.static-page.tls.certresolver=letsencrypt"
+      - "traefik.http.services.static-page.loadbalancer.server.port=80"

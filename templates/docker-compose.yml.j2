@@ -13,6 +13,7 @@ networks:
 volumes:
   authentik_pg_data:
   authentik_redis_data:
+  authentik_media_data:
 {% if enable_nextcloud %}
   nextcloud_db_data:
   nextcloud_app_data:
@@ -43,7 +44,7 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.{{ domain }}`)"
+      - "traefik.http.routers.traefik-dashboard.rule=Host('traefik.{{ domain }}')"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
@@ -60,13 +61,13 @@ services:
       - "3000:3000/tcp"    # setup inicial (desabilitar após configuração)
     volumes:
       - {{ storage_path }}/adguard/work:/opt/adguardhome/work
-      - ./adguard/AdGuardHome.yaml:/opt/adguardhome/conf/AdGuardHome.yaml
+      - ./adguard:/opt/adguardhome/conf
     networks:
       - proxy
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.adguard.rule=Host(`dns.{{ domain }}`)"
+      - "traefik.http.routers.adguard.rule=Host('dns.{{ domain }}')"
       - "traefik.http.routers.adguard.entrypoints=websecure"
       - "traefik.http.routers.adguard.tls.certresolver=letsencrypt"
       - "traefik.http.services.adguard.loadbalancer.server.port=3000"
@@ -150,7 +151,7 @@ services:
       - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
       - AUTHENTIK_ERROR_REPORTING__ENABLED=false
     volumes:
-      - {{ storage_path }}/authentik/media:/media
+      - authentik_media_data:/media
       - {{ storage_path }}/authentik/custom-templates:/templates
     networks:
       - proxy
@@ -162,7 +163,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.authentik.rule=Host(`auth.{{ domain }}`)"
+      - "traefik.http.routers.authentik.rule=Host('auth.{{ domain }}')"
       - "traefik.http.routers.authentik.entrypoints=websecure"
       - "traefik.http.routers.authentik.tls.certresolver=letsencrypt"
       - "traefik.http.services.authentik.loadbalancer.server.port=9000"
@@ -186,7 +187,7 @@ services:
       - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - {{ storage_path }}/authentik/media:/media
+      - authentik_media_data:/media
       - {{ storage_path }}/authentik/custom-templates:/templates
     networks:
       - internal
@@ -205,4 +206,7 @@ services:
 {% endif %}
 {% if enable_immich %}
   {% include 'services/immich.j2' %}
+{% endif %}
+{% if enable_static_page %}
+  {% include 'services/static-page.j2' %}
 {% endif %}

@@ -148,7 +148,7 @@ def ask_questions(services_config: dict) -> dict:
     # Disco/storage
     storage_path = questionary.text(
         "Caminho para volumes persistentes (onde os dados serão armazenados):",
-        default="/opt/homeserver/data",
+        default="/mnt/data/myhomeserver",
     ).ask()
     if not storage_path:
         sys.exit(0)
@@ -176,6 +176,7 @@ def ask_questions(services_config: dict) -> dict:
         "enable_jellyfin": "jellyfin" in (selected_optional or []),
         "enable_nextcloud": "nextcloud" in (selected_optional or []),
         "enable_immich": "immich" in (selected_optional or []),
+        "enable_static_page": "static-page" in (selected_optional or []),
     }
 
 
@@ -242,6 +243,71 @@ def run_environment_checks(answers: dict) -> dict:
 # ── Geração de arquivos ───────────────────────────────────────────────────────
 
 
+def create_data_directories(context: dict) -> None:
+    """Cria os subdiretórios necessários para cada serviço."""
+    storage = Path(context["storage_path"])
+
+    dirs = [
+        "traefik/acme",
+        "traefik/logs",
+        "adguard/work",
+        "adguard/conf",
+        "wireguard/config",
+        "authentik/media/public",
+        "authentik/media/tls",
+        "authentik/custom-templates",
+    ]
+
+    if context.get("enable_jellyfin"):
+        dirs.extend(
+            [
+                "jellyfin/config",
+                "media/movies",
+                "media/shows",
+                "media/music",
+                "prowlarr/config",
+                "radarr/config",
+                "sonarr/config",
+                "bazarr/config",
+                "qbittorrent/config",
+                "downloads",
+            ]
+        )
+
+    if context.get("enable_nextcloud"):
+        dirs.extend(
+            [
+                "nextcloud/data",
+            ]
+        )
+
+    if context.get("enable_immich"):
+        dirs.extend(
+            [
+                "immich/upload",
+                "immich/model-cache",
+            ]
+        )
+
+    if context.get("enable_static_page"):
+        dirs.extend(
+            [
+                "static-page/html",
+            ]
+        )
+
+    console.print("[bold]Criando diretórios de dados...[/bold]")
+    for dir_path in dirs:
+        full_path = storage / dir_path
+        try:
+            full_path.mkdir(parents=True, exist_ok=True)
+            if "authentik" in dir_path or "adguard" in dir_path:
+                full_path.chmod(0o777)
+            console.print(f"  [green]✔[/green] {dir_path}")
+        except Exception as e:
+            console.print(f"  [red]✘[/red] {dir_path} — {e}")
+
+
 def render_templates(context: dict) -> None:
     """Renderiza todos os templates Jinja2 e salva em output/."""
     env = Environment(
@@ -260,6 +326,11 @@ def render_templates(context: dict) -> None:
         ("traefik/traefik.yml.j2", OUTPUT / "traefik" / "traefik.yml"),
         ("adguard/AdGuardHome.yaml.j2", OUTPUT / "adguard" / "AdGuardHome.yaml"),
     ]
+
+    if context.get("enable_static_page"):
+        static_page_dir = OUTPUT / "static-page" / "html"
+        static_page_dir.mkdir(parents=True, exist_ok=True)
+        files.append(("static-page/index.html.j2", static_page_dir / "index.html"))
 
     console.print("[bold]Gerando arquivos...[/bold]")
     for template_name, output_path in files:
@@ -341,6 +412,7 @@ def main(dry_run: bool):
         console.print_json(json.dumps(safe, indent=2))
         return
 
+    create_data_directories(context)
     render_templates(context)
     print_next_steps(context)
 
