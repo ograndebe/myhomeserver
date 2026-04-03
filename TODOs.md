@@ -7,7 +7,7 @@
 - [x] Adicionar `maxResponseBodySize` no middleware ForwardAuth do Authentik (warning nos logs)
 
 ## Authentik
-- [ ] Bootstrap de admin dá erro se volume persistir (precisa matar volume ou DB já existe)
+- [x] Bootstrap de admin dá erro se volume persistir (precisa matar volume ou DB já existe)
 - [ ] Configurar integração SSO com os serviços
 - [ ] Configurar Outpost para Traefik
 

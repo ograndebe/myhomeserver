@@ -125,6 +125,24 @@ def generate_secret(length: int = 32) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
+def load_output_env() -> dict:
+    """Carrega secrets de output/.env existente para manter idempotência."""
+    env_path = OUTPUT / ".env"
+    if not env_path.exists():
+        return {}
+
+    from dotenv import load_dotenv
+
+    load_dotenv(env_path)
+
+    return {
+        "authentik_secret_key": os.getenv("AUTHENTIK_SECRET_KEY", ""),
+        "authentik_pg_password": os.getenv("AUTHENTIK_PG_PASSWORD", ""),
+        "nextcloud_db_password": os.getenv("NEXTCLOUD_DB_PASSWORD", ""),
+        "immich_db_password": os.getenv("IMMICH_DB_PASSWORD", ""),
+    }
+
+
 # ── Perguntas interativas ─────────────────────────────────────────────────────
 
 
@@ -512,17 +530,22 @@ def main(dry_run: bool):
     answers = ask_questions(services_config, env_defaults)
     env_info = run_environment_checks(answers)
 
+    # Carrega secrets existentes do output/.env para manter idempotência
+    existing_secrets = load_output_env()
+
     # Contexto completo para os templates
     context = {
         **answers,
         **env_info,
-        # Secrets gerados automaticamente
-        "authentik_secret_key": generate_secret(50),
-        "authentik_pg_password": generate_secret(32),
-        "nextcloud_db_password": generate_secret(32)
-        if answers["enable_nextcloud"]
-        else "",
-        "immich_db_password": generate_secret(32) if answers["enable_immich"] else "",
+        # Secrets — reuse existing se disponível, caso contrário gera novos
+        "authentik_secret_key": existing_secrets.get("authentik_secret_key")
+        or generate_secret(50),
+        "authentik_pg_password": existing_secrets.get("authentik_pg_password")
+        or generate_secret(32),
+        "nextcloud_db_password": existing_secrets.get("nextcloud_db_password")
+        or (generate_secret(32) if answers["enable_nextcloud"] else ""),
+        "immich_db_password": existing_secrets.get("immich_db_password")
+        or (generate_secret(32) if answers["enable_immich"] else ""),
         "wireguard_peers": "laptop,phone",  # default, usuário pode editar no .env
     }
 
