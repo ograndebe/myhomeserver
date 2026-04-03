@@ -9,7 +9,7 @@
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.static-page.rule=Host('test.{{ domain }}')"
+      - "traefik.http.routers.static-page.rule=Host(`test.{{ domain }}`)"
       - "traefik.http.routers.static-page.entrypoints=websecure"
       - "traefik.http.routers.static-page.tls.certresolver=letsencrypt"
       - "traefik.http.services.static-page.loadbalancer.server.port=80"

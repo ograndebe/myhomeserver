@@ -133,8 +133,10 @@ def ask_questions(services_config: dict) -> dict:
     cf_email = questionary.text("  CF_API_EMAIL:").ask()
     if not cf_email:
         sys.exit(0)
-    cf_api_key = questionary.password("  CF_API_KEY:").ask()
-    if not cf_api_key:
+    cf_dns_api_token = questionary.password(
+        "  CF_DNS_API_TOKEN (Cloudflare DNS API Token):"
+    ).ask()
+    if not cf_dns_api_token:
         sys.exit(0)
 
     # Credenciais Authentik
@@ -190,7 +192,7 @@ def ask_questions(services_config: dict) -> dict:
     return {
         "domain": domain,
         "cf_email": cf_email,
-        "cf_api_key": cf_api_key,
+        "cf_dns_api_token": cf_dns_api_token,
         "acme_email": acme_email,
         "storage_path": storage_path,
         "authentik_email": authentik_email,
@@ -365,6 +367,68 @@ def render_templates(context: dict) -> None:
             console.print(f"  [red]✘[/red] {output_path.relative_to(ROOT)} — {e}")
 
 
+def generate_post_build_notes(context: dict) -> None:
+    """Gera o arquivo post-build-notes.txt com instruções pós-geração."""
+    domain = context["domain"]
+    notes_path = OUTPUT / "post-build-notes.txt"
+
+    enabled_services = []
+    enabled_services.append("- Authentik: https://auth." + domain)
+    enabled_services.append("- AdGuard DNS: https://dns." + domain)
+    enabled_services.append("- Traefik Dashboard: https://traefik." + domain)
+    enabled_services.append("- Static Page: https://test." + domain)
+
+    if context.get("enable_jellyfin"):
+        enabled_services.append("- Jellyfin: https://jellyfin." + domain)
+        enabled_services.append("- Prowlarr: https://prowlarr." + domain)
+        enabled_services.append("- Radarr: https://radarr." + domain)
+        enabled_services.append("- Sonarr: https://sonarr." + domain)
+        enabled_services.append("- Bazarr: https://bazarr." + domain)
+
+    if context.get("enable_nextcloud"):
+        enabled_services.append("- Nextcloud: https://files." + domain)
+
+    if context.get("enable_immich"):
+        enabled_services.append("- Immich: https://photos." + domain)
+
+    notes_content = f"""# Post-Build Notes
+# Gerado em: {subprocess.run(["date"], capture_output=True, text=True).stdout.strip()}
+
+## Próximos Passos
+
+### 1. Configuração DNS
+Crie um registro DNS wildcard no Cloudflare:
+  *.{domain}  →  A  →  {context["local_ip"]}
+
+### 2. Subir os serviços
+  cd output
+  docker compose up -d
+
+### 3. Aguardar
+Aguarde ~2 minutos para as migrations do Authentik completarem.
+Verifique os logs com: docker compose logs -f
+
+### 4. Serviços Disponíveis
+{chr(10).join(enabled_services)}
+
+### 5. Configuração Adicional
+  - Authentik: docs/authentik-setup.md
+  - Geral: docs/post-setup.md
+
+### 6. WireGuard VPN
+Para configurar peers adicionais, edite WIREGUARD_PEERS no arquivo .env
+e recrie o container: docker compose up -d wireguard
+
+### 7. Troubleshooting
+  - Ver logs: docker compose logs [serviço]
+  - Rebuild: docker compose down && docker compose up -d
+  - Ver containers: docker compose ps
+"""
+
+    notes_path.write_text(notes_content)
+    console.print(f"  [green]✔[/green] {notes_path.relative_to(ROOT)}")
+
+
 def print_next_steps(context: dict) -> None:
     """Exibe as instruções pós-geração."""
     domain = context["domain"]
@@ -438,6 +502,7 @@ def main(dry_run: bool):
 
     create_data_directories(context)
     render_templates(context)
+    generate_post_build_notes(context)
     print_next_steps(context)
 
 

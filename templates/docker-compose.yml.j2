@@ -26,7 +26,7 @@ services:
 
   # ── Traefik ──────────────────────────────────────────────────────────────
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
     ports:
@@ -39,12 +39,12 @@ services:
       - {{ storage_path }}/traefik/logs:/var/log/traefik
     environment:
       - CF_API_EMAIL=${CF_API_EMAIL}
-      - CF_API_KEY=${CF_API_KEY}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
     networks:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik-dashboard.rule=Host('traefik.{{ domain }}')"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.{{ domain }}`)"
       - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
       - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
@@ -67,7 +67,7 @@ services:
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.adguard.rule=Host('dns.{{ domain }}')"
+      - "traefik.http.routers.adguard.rule=Host(`dns.{{ domain }}`)"
       - "traefik.http.routers.adguard.entrypoints=websecure"
       - "traefik.http.routers.adguard.tls.certresolver=letsencrypt"
       - "traefik.http.services.adguard.loadbalancer.server.port=3000"
@@ -166,7 +166,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.authentik.rule=Host('auth.{{ domain }}')"
+      - "traefik.http.routers.authentik.rule=Host(`auth.{{ domain }}`)"
       - "traefik.http.routers.authentik.entrypoints=websecure"
       - "traefik.http.routers.authentik.tls.certresolver=letsencrypt"
       - "traefik.http.services.authentik.loadbalancer.server.port=9000"

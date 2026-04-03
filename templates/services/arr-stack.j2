@@ -14,7 +14,7 @@
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.prowlarr.rule=Host('prowlarr.{{ domain }}')"
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.{{ domain }}`)"
       - "traefik.http.routers.prowlarr.entrypoints=websecure"
       - "traefik.http.routers.prowlarr.tls.certresolver=letsencrypt"
       - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
@@ -38,7 +38,7 @@
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.radarr.rule=Host('radarr.{{ domain }}')"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.{{ domain }}`)"
       - "traefik.http.routers.radarr.entrypoints=websecure"
       - "traefik.http.routers.radarr.tls.certresolver=letsencrypt"
       - "traefik.http.services.radarr.loadbalancer.server.port=7878"
@@ -62,7 +62,7 @@
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.sonarr.rule=Host('sonarr.{{ domain }}')"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.{{ domain }}`)"
       - "traefik.http.routers.sonarr.entrypoints=websecure"
       - "traefik.http.routers.sonarr.tls.certresolver=letsencrypt"
       - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
@@ -86,7 +86,7 @@
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.bazarr.rule=Host('bazarr.{{ domain }}')"
+      - "traefik.http.routers.bazarr.rule=Host(`bazarr.{{ domain }}`)"
       - "traefik.http.routers.bazarr.entrypoints=websecure"
       - "traefik.http.routers.bazarr.tls.certresolver=letsencrypt"
       - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
@@ -110,7 +110,7 @@
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.qbittorrent.rule=Host('qbit.{{ domain }}')"
+      - "traefik.http.routers.qbittorrent.rule=Host(`qbit.{{ domain }}`)"
       - "traefik.http.routers.qbittorrent.entrypoints=websecure"
       - "traefik.http.routers.qbittorrent.tls.certresolver=letsencrypt"
       - "traefik.http.services.qbittorrent.loadbalancer.server.port=8080"

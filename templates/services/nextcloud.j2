@@ -53,7 +53,7 @@
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.nextcloud.rule=Host('files.{{ domain }}')"
+      - "traefik.http.routers.nextcloud.rule=Host(`files.{{ domain }}`)"
       - "traefik.http.routers.nextcloud.entrypoints=websecure"
       - "traefik.http.routers.nextcloud.tls.certresolver=letsencrypt"
       - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
