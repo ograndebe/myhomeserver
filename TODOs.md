@@ -4,7 +4,7 @@
 - [x] Fazer setup.py ler de .env existente quando disponível, evitando perguntas repetitivas
 
 ## Traefik
-- [ ] Adicionar `maxResponseBodySize` no middleware ForwardAuth do Authentik (warning nos logs)
+- [x] Adicionar `maxResponseBodySize` no middleware ForwardAuth do Authentik (warning nos logs)
 
 ## Authentik
 - [ ] Bootstrap de admin dá erro se volume persistir (precisa matar volume ou DB já existe)
