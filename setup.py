@@ -313,13 +313,6 @@ def create_data_directories(context: dict) -> None:
             ]
         )
 
-    if context.get("enable_static_page"):
-        dirs.extend(
-            [
-                "static-page/html",
-            ]
-        )
-
     console.print("[bold]Criando diretórios de dados...[/bold]")
     for dir_path in dirs:
         full_path = storage / dir_path

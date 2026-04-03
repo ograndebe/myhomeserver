@@ -4,7 +4,7 @@
     container_name: static-page
     restart: unless-stopped
     volumes:
-      - {{ storage_path }}/static-page/html:/usr/share/nginx/html:ro
+      - ./static-page/html:/usr/share/nginx/html:ro
     networks:
       - proxy
     labels:
