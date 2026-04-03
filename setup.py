@@ -40,6 +40,30 @@ TEMPLATES = ROOT / "templates"
 CONFIG = ROOT / "config" / "services.yml"
 
 
+def load_existing_env() -> dict:
+    """Carrega variáveis de .env existente no diretório do setup.py."""
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        return {}
+
+    from dotenv import load_dotenv
+
+    load_dotenv(env_path)
+
+    return {
+        "domain": os.getenv("DOMAIN", ""),
+        "cf_email": os.getenv("CF_API_EMAIL", ""),
+        "cf_dns_api_token": os.getenv("CF_DNS_API_TOKEN", ""),
+        "acme_email": os.getenv("ACME_EMAIL", ""),
+        "storage_path": os.getenv("STORAGE_PATH", "/mnt/data/myhomeserver"),
+        "authentik_email": os.getenv("AUTHENTIK_INITIAL_ADMIN_EMAIL", ""),
+        "authentik_user": os.getenv(
+            "AUTHENTIK_INITIAL_ADMIN_USERNAME", "administrator"
+        ),
+        "authentik_password": os.getenv("AUTHENTIK_INITIAL_ADMIN_PASSWORD", ""),
+    }
+
+
 # ── Descoberta do ambiente ────────────────────────────────────────────────────
 
 
@@ -104,8 +128,18 @@ def generate_secret(length: int = 32) -> str:
 # ── Perguntas interativas ─────────────────────────────────────────────────────
 
 
-def ask_questions(services_config: dict) -> dict:
+def ask_questions(services_config: dict, env_defaults: dict = None) -> dict:
     """Faz as perguntas interativas e retorna o contexto para os templates."""
+    if env_defaults is None:
+        env_defaults = {}
+
+    # Avisa se carregou defaults do .env
+    if env_defaults:
+        console.print(
+            "[dim]💡 Valores do .env carregados como defaults — pressione Enter para confirmar[/dim]"
+        )
+        console.print()
+
     console.print()
     console.print(
         Panel.fit(
@@ -119,6 +153,7 @@ def ask_questions(services_config: dict) -> dict:
     # Domínio
     domain = questionary.text(
         "Qual é o domínio principal do servidor?",
+        default=env_defaults.get("domain", ""),
         validate=lambda v: (
             True if "." in v else "Informe um domínio válido (ex: meusite.com)"
         ),
@@ -130,11 +165,14 @@ def ask_questions(services_config: dict) -> dict:
     console.print(
         "\n[dim]Credenciais Cloudflare (usado pelo Traefik para emitir certificado wildcard TLS):[/dim]"
     )
-    cf_email = questionary.text("  CF_API_EMAIL:").ask()
+    cf_email = questionary.text(
+        "  CF_API_EMAIL:", default=env_defaults.get("cf_email", "")
+    ).ask()
     if not cf_email:
         sys.exit(0)
     cf_dns_api_token = questionary.password(
-        "  CF_DNS_API_TOKEN (Cloudflare DNS API Token):"
+        "  CF_DNS_API_TOKEN (Cloudflare DNS API Token):",
+        default=env_defaults.get("cf_dns_api_token", ""),
     ).ask()
     if not cf_dns_api_token:
         sys.exit(0)
@@ -142,17 +180,22 @@ def ask_questions(services_config: dict) -> dict:
     # Credenciais Authentik
     console.print("\n[dim]Credenciais do admin Authentik (SSO):[/dim]")
     authentik_email = questionary.text(
-        "  E-mail do admin:", default=f"admin@{domain}"
+        "  E-mail do admin:",
+        default=f"admin@{domain}"
+        if not env_defaults.get("authentik_email")
+        else env_defaults["authentik_email"],
     ).ask()
     if not authentik_email:
         sys.exit(0)
     authentik_user = questionary.text(
-        "  Username do admin:", default="administrator"
+        "  Username do admin:",
+        default=env_defaults.get("authentik_user", "administrator"),
     ).ask()
     if not authentik_user:
         sys.exit(0)
     authentik_password = questionary.password(
         "  Senha do admin (mínimo 8 caracteres):",
+        default=env_defaults.get("authentik_password", ""),
         validate=lambda v: (
             True if len(v) >= 8 else "A senha deve ter pelo menos 8 caracteres"
         ),
@@ -163,6 +206,7 @@ def ask_questions(services_config: dict) -> dict:
     # E-mail Let's Encrypt
     acme_email = questionary.text(
         "E-mail para o Let's Encrypt (notificações de renovação de certificado):",
+        default=env_defaults.get("acme_email", ""),
         validate=lambda v: True if "@" in v else "Informe um e-mail válido",
     ).ask()
     if not acme_email:
@@ -171,7 +215,7 @@ def ask_questions(services_config: dict) -> dict:
     # Disco/storage
     storage_path = questionary.text(
         "Caminho para volumes persistentes (onde os dados serão armazenados):",
-        default="/mnt/data/myhomeserver",
+        default=env_defaults.get("storage_path", "/mnt/data/myhomeserver"),
     ).ask()
     if not storage_path:
         sys.exit(0)
@@ -464,7 +508,8 @@ def main(dry_run: bool):
     """Homeserver setup — gera docker-compose.yml, .env e configurações."""
     services_config = yaml.safe_load(CONFIG.read_text())
 
-    answers = ask_questions(services_config)
+    env_defaults = load_existing_env()
+    answers = ask_questions(services_config, env_defaults)
     env_info = run_environment_checks(answers)
 
     # Contexto completo para os templates
