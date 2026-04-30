@@ -1,0 +1,9 @@
+# Ignore output e caches
+output/
+.git/
+.ruff_cache/
+**/__pycache__/
+**/*.pyc
+
+# Mantém bootstrap/ para o build
+!bootstrap/

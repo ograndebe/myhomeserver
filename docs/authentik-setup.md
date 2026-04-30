@@ -5,11 +5,32 @@ Este guia cobre a configuração inicial e a integração com cada serviço.
 
 ---
 
-## 1. Setup inicial
+## 1. Setup inicial (AUTOMÁTICO)
+
+O setup agora configura o Authentik automaticamente! Após gerar os arquivos:
+
+```bash
+# Método recomendado: usar o script post-setup.sh
+./post-setup.sh
+```
+
+Este script irá:
+1. Subir todos os containers
+2. Aguardar o Authentik inicializar
+3. Configurar automaticamente:
+   - Proxy Providers para Traefik e AdGuard
+   - Aplicações vinculadas aos providers
+   - Outpost para ForwardAuth via Docker
+
+**Credenciais admin:** as mesmas definidas no `setup.py` (e-mail e senha)
+
+### Setup manual (se necessário)
+
+Se o bootstrap automático falhar:
 
 1. Acesse `https://auth.seudominio.com/if/flow/initial-setup/`
 2. Defina e-mail e senha do usuário `akadmin`
-3. Salve as credenciais em um lugar seguro
+3. Siga o guia abaixo para configurar manualmente
 
 ---
 

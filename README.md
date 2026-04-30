@@ -21,8 +21,13 @@ git clone git@github.com:usuario/homeserver
 cd homeserver
 chmod +x setup.py
 ./setup.py
-docker compose -f output/docker-compose.yml up -d
+
+# Sobe os containers e configura o Authentik automaticamente:
+./post-setup.sh
 ```
+
+> **Nota:** O script `post-setup.sh` substitui o comando manual `docker compose up -d`
+> e configura automaticamente o Authentik com SSO para todos os serviços.
 
 ## Serviços incluídos
 

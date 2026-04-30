@@ -202,6 +202,28 @@ services:
       authentik-redis:
         condition: service_healthy
 
+  # ── Bootstrap (pós-setup automático) ────────────────────────────────────
+  bootstrap:
+    build:
+      context: ../
+      dockerfile: bootstrap/Dockerfile
+    container_name: homeserver-bootstrap
+    volumes:
+      - ../bootstrap/scripts:/app/scripts:ro
+    environment:
+      - DOMAIN={{ domain }}
+      - AUTHENTIK_INITIAL_ADMIN_EMAIL={{ authentik_email }}
+      - AUTHENTIK_INITIAL_ADMIN_PASSWORD={{ authentik_password }}
+    networks:
+      - proxy
+      - internal
+    depends_on:
+      authentik-server:
+        condition: service_healthy
+      authentik-worker:
+        condition: service_healthy
+    restart: "no"
+
 {% if enable_jellyfin %}
   {% include 'services/jellyfin.j2' %}
   {% include 'services/arr-stack.j2' %}

@@ -455,28 +455,32 @@ def generate_post_build_notes(context: dict) -> None:
 Crie um registro DNS wildcard no Cloudflare:
   *.{domain}  →  A  →  {context["local_ip"]}
 
-### 2. Subir os serviços
-  cd output
-  docker compose up -d
+### 2. Subir os serviços (com bootstrap automático)
+  ./post-setup.sh
 
-### 3. Aguardar
-Aguarde ~2 minutos para as migrations do Authentik completarem.
-Verifique os logs com: docker compose logs -f
+O script post-setup.sh irá:
+  - Subir todos os containers
+  - Executar o container bootstrap que configura o Authentik automaticamente
+  - O bootstrap container cria:
+    * Proxy Providers para Traefik e AdGuard
+    * Aplicações no Authentik
+    * Outpost para ForwardAuth
 
-### 4. Serviços Disponíveis
+### 3. Serviços Disponíveis
 {chr(10).join(enabled_services)}
 
-### 5. Configuração Adicional
+### 4. Configuração Adicional
   - Authentik: docs/authentik-setup.md
   - Geral: docs/post-setup.md
 
-### 6. WireGuard VPN
+### 5. WireGuard VPN
 Para configurar peers adicionais, edite WIREGUARD_PEERS no arquivo .env
 e recrie o container: docker compose up -d wireguard
 
-### 7. Troubleshooting
-  - Ver logs: docker compose logs [serviço]
-  - Rebuild: docker compose down && docker compose up -d
+### 6. Troubleshooting
+  - Ver logs do bootstrap: docker compose logs bootstrap
+  - Ver logs de serviço: docker compose logs [serviço]
+  - Rebuild: docker compose down && docker compose up -d --build
   - Ver containers: docker compose ps
 """
 
@@ -497,18 +501,20 @@ def print_next_steps(context: dict) -> None:
 [cyan]1.[/cyan] Crie um registro DNS wildcard no seu provedor:
    [dim]*.{domain}  →  A  →  {context["local_ip"]}[/dim]
 
-[cyan]2.[/cyan] Suba os serviços:
-   [dim]docker compose -f output/docker-compose.yml up -d[/dim]
+[cyan]2.[/cyan] Suba os serviços (com bootstrap automático):
+   [dim]./post-setup.sh[/dim]
 
-[cyan]3.[/cyan] Aguarde ~2 minutos para as migrations do Authentik completarem
+   O script irá:
+   - Subir todos os containers
+   - Configurar o Authentik automaticamente via bootstrap container
 
-[cyan]4.[/cyan] Acesse os serviços:
+[cyan]3.[/cyan] Acesse os serviços:
    [dim]- Authentik: https://auth.{domain}[/dim]
    [dim]- AdGuard: https://dns.{domain} (user: {context["authentik_email"]})[/dim]
    [dim]- Traefik: https://traefik.{domain}[/dim]
    [dim]- Teste: https://test.{domain}[/dim]
 
-[cyan]5.[/cyan] Configuração adicional:
+[cyan]4.[/cyan] Configuração adicional:
    [dim]Veja docs/post-setup.md[/dim]
 """,
             title="[bold]Setup concluído[/bold]",
@@ -522,12 +528,50 @@ def print_next_steps(context: dict) -> None:
 
 @click.command()
 @click.option("--dry-run", is_flag=True, help="Mostra o contexto sem gerar arquivos")
-def main(dry_run: bool):
+@click.option(
+    "--use-existing-env",
+    is_flag=True,
+    help="Usa valores do .env existente sem perguntar interativamente",
+)
+def main(dry_run: bool, use_existing_env: bool):
     """Homeserver setup — gera docker-compose.yml, .env e configurações."""
     services_config = yaml.safe_load(CONFIG.read_text())
 
     env_defaults = load_existing_env()
-    answers = ask_questions(services_config, env_defaults)
+
+    if use_existing_env:
+        # Usa valores do .env existente sem perguntas
+        if not env_defaults.get("domain"):
+            console.print("[red]--use-existing-env requer um .env válido com DOMAIN[/red]")
+            sys.exit(1)
+
+        console.print(
+            Panel(
+                "[bold cyan]Modo --use-existing-env[/bold cyan]\n"
+                "Usando valores do .env existente sem perguntas interativas.",
+                border_style="cyan",
+            )
+        )
+        console.print()
+
+        answers = {
+            "domain": env_defaults["domain"],
+            "cf_email": env_defaults.get("cf_email", ""),
+            "cf_dns_api_token": env_defaults.get("cf_dns_api_token", ""),
+            "acme_email": env_defaults.get("acme_email", ""),
+            "storage_path": env_defaults.get("storage_path", "/mnt/data/myhomeserver"),
+            "authentik_email": env_defaults.get("authentik_email", ""),
+            "authentik_user": env_defaults.get("authentik_user", "administrator"),
+            "authentik_password": env_defaults.get("authentik_password", ""),
+            "optional_services": [],
+            "enable_jellyfin": False,
+            "enable_nextcloud": False,
+            "enable_immich": False,
+            "enable_static_page": True,
+        }
+    else:
+        answers = ask_questions(services_config, env_defaults)
+
     env_info = run_environment_checks(answers)
 
     # Carrega secrets existentes do output/.env para manter idempotência
