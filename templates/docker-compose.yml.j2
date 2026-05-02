@@ -73,6 +73,18 @@ services:
       - "traefik.http.services.adguard.loadbalancer.server.port=3000"
       - "traefik.http.routers.adguard.middlewares=authentik@docker"
 
+  # ── Cloudflare DDNS ──────────────────────────────────────────────────────
+  cloudflare-ddns:
+    image: oznu/cloudflare-ddns:latest
+    container_name: cloudflare-ddns
+    environment:
+      - API_KEY=${CF_DNS_API_TOKEN}
+      - ZONE=${DOMAIN}
+      - SUBDOMAIN=
+      - PROXIED=false
+    restart: unless-stopped
+    network_mode: host
+
   # ── WireGuard ────────────────────────────────────────────────────────────
   wireguard:
     image: lscr.io/linuxserver/wireguard:latest
@@ -89,7 +101,7 @@ services:
       - TZ=${TZ:-America/Sao_Paulo}
       - SERVERURL={{ domain }}
       - SERVERPORT=51820
-      - PEERS=${WIREGUARD_PEERS:-laptop,phone}
+      - PEERS=${WIREGUARD_PEERS:-phone}
       - PEERDNS={{ local_ip }}   # aponta para o AdGuard local
       - INTERNAL_SUBNET=10.13.13.0/24
       - ALLOWEDIPS=10.13.13.0/24,{{ local_ip }}/32

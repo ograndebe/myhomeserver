@@ -61,6 +61,7 @@ def load_existing_env() -> dict:
             "AUTHENTIK_INITIAL_ADMIN_USERNAME", "administrator"
         ),
         "authentik_password": os.getenv("AUTHENTIK_INITIAL_ADMIN_PASSWORD", ""),
+        "wireguard_peers": os.getenv("WIREGUARD_PEERS", ""),
     }
 
 
@@ -140,10 +141,23 @@ def load_output_env() -> dict:
         "authentik_pg_password": os.getenv("AUTHENTIK_PG_PASSWORD", ""),
         "nextcloud_db_password": os.getenv("NEXTCLOUD_DB_PASSWORD", ""),
         "immich_db_password": os.getenv("IMMICH_DB_PASSWORD", ""),
+        "wireguard_peers": os.getenv("WIREGUARD_PEERS", ""),
     }
 
 
 # ── Perguntas interativas ─────────────────────────────────────────────────────
+
+
+def normalize_peer_name(name: str) -> str:
+    """Normaliza o nome de um peer WireGuard.
+
+    Converte para lowercase, substitui espaços por underscore e remove
+    caracteres especiais, mantendo apenas letras, números e underscore.
+    """
+    import re
+
+    name = name.strip().lower().replace(" ", "_")
+    return re.sub(r"[^a-z0-9_]", "", name)
 
 
 def ask_questions(services_config: dict, env_defaults: dict = None) -> dict:
@@ -168,7 +182,7 @@ def ask_questions(services_config: dict, env_defaults: dict = None) -> dict:
     )
     console.print()
 
-    # Domínio
+    # Domínio próprio (único modo suportado)
     domain = questionary.text(
         "Qual é o domínio principal do servidor?",
         default=env_defaults.get("domain", ""),
@@ -251,6 +265,18 @@ def ask_questions(services_config: dict, env_defaults: dict = None) -> dict:
     if selected_optional is None:
         sys.exit(0)
 
+    # WireGuard peers
+    wireguard_peers_input = questionary.text(
+        "Nomes dos devices para WireGuard (separados por vírgula):",
+        default=env_defaults.get("wireguard_peers", "phone"),
+    ).ask()
+    if wireguard_peers_input is None:
+        sys.exit(0)
+    if not wireguard_peers_input.strip():
+        wireguard_peers_input = "phone"
+    peers = [normalize_peer_name(p) for p in wireguard_peers_input.split(",")]
+    wireguard_peers = ",".join(peers)
+
     return {
         "domain": domain,
         "cf_email": cf_email,
@@ -265,6 +291,7 @@ def ask_questions(services_config: dict, env_defaults: dict = None) -> dict:
         "enable_nextcloud": "nextcloud" in (selected_optional or []),
         "enable_immich": "immich" in (selected_optional or []),
         "enable_static_page": "static-page" in (selected_optional or []),
+        "wireguard_peers": wireguard_peers,
     }
 
 
@@ -446,14 +473,16 @@ def generate_post_build_notes(context: dict) -> None:
     if context.get("enable_immich"):
         enabled_services.append("- Immich: https://photos." + domain)
 
+    dns_instructions = f"""### 1. Configuração DNS
+Crie um registro DNS wildcard no Cloudflare:
+  *.{domain}  →  A  →  {context["local_ip"]}"""
+
     notes_content = f"""# Post-Build Notes
 # Gerado em: {subprocess.run(["date"], capture_output=True, text=True).stdout.strip()}
 
 ## Próximos Passos
 
-### 1. Configuração DNS
-Crie um registro DNS wildcard no Cloudflare:
-  *.{domain}  →  A  →  {context["local_ip"]}
+{dns_instructions}
 
 ### 2. Subir os serviços (com bootstrap automático)
   ./post-setup.sh
@@ -491,6 +520,18 @@ e recrie o container: docker compose up -d wireguard
 def print_next_steps(context: dict) -> None:
     """Exibe as instruções pós-geração."""
     domain = context["domain"]
+
+    dns_step = (
+        f"[cyan]1.[/cyan] Crie um registro DNS wildcard no seu provedor:\n"
+        f"   [dim]*.{domain}  →  A  →  {context['local_ip']}[/dim]"
+    )
+    service_access = (
+        f"[dim]- Authentik: https://auth.{domain}[/dim]\n"
+        f"[dim]- AdGuard: https://dns.{domain} (user: {context['authentik_email']})[/dim]\n"
+        f"[dim]- Traefik: https://traefik.{domain}[/dim]\n"
+        f"[dim]- Teste: https://test.{domain}[/dim]"
+    )
+
     console.print()
     console.print(
         Panel(
@@ -498,8 +539,7 @@ def print_next_steps(context: dict) -> None:
 
 [bold]Próximos passos:[/bold]
 
-[cyan]1.[/cyan] Crie um registro DNS wildcard no seu provedor:
-   [dim]*.{domain}  →  A  →  {context["local_ip"]}[/dim]
+{dns_step}
 
 [cyan]2.[/cyan] Suba os serviços (com bootstrap automático):
    [dim]./post-setup.sh[/dim]
@@ -509,10 +549,7 @@ def print_next_steps(context: dict) -> None:
    - Configurar o Authentik automaticamente via bootstrap container
 
 [cyan]3.[/cyan] Acesse os serviços:
-   [dim]- Authentik: https://auth.{domain}[/dim]
-   [dim]- AdGuard: https://dns.{domain} (user: {context["authentik_email"]})[/dim]
-   [dim]- Traefik: https://traefik.{domain}[/dim]
-   [dim]- Teste: https://test.{domain}[/dim]
+{service_access}
 
 [cyan]4.[/cyan] Configuração adicional:
    [dim]Veja docs/post-setup.md[/dim]
@@ -542,7 +579,9 @@ def main(dry_run: bool, use_existing_env: bool):
     if use_existing_env:
         # Usa valores do .env existente sem perguntas
         if not env_defaults.get("domain"):
-            console.print("[red]--use-existing-env requer um .env válido com DOMAIN[/red]")
+            console.print(
+                "[red]--use-existing-env requer um .env válido com DOMAIN[/red]"
+            )
             sys.exit(1)
 
         console.print(
@@ -568,6 +607,7 @@ def main(dry_run: bool, use_existing_env: bool):
             "enable_nextcloud": False,
             "enable_immich": False,
             "enable_static_page": True,
+            "wireguard_peers": env_defaults.get("wireguard_peers", "phone"),
         }
     else:
         answers = ask_questions(services_config, env_defaults)
@@ -590,7 +630,9 @@ def main(dry_run: bool, use_existing_env: bool):
         or (generate_secret(32) if answers["enable_nextcloud"] else ""),
         "immich_db_password": existing_secrets.get("immich_db_password")
         or (generate_secret(32) if answers["enable_immich"] else ""),
-        "wireguard_peers": "laptop,phone",  # default, usuário pode editar no .env
+        "wireguard_peers": answers.get("wireguard_peers")
+        or existing_secrets.get("wireguard_peers")
+        or "phone",
     }
 
     if dry_run:
@@ -600,7 +642,7 @@ def main(dry_run: bool, use_existing_env: bool):
         safe = {
             k: v
             for k, v in context.items()
-            if "password" not in k and "secret" not in k
+            if "password" not in k and "secret" not in k and "token" not in k
         }
         console.print_json(json.dumps(safe, indent=2))
         return

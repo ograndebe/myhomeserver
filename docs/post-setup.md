@@ -54,20 +54,69 @@ Resumo:
 
 ---
 
-## 4. WireGuard — Configuração dos clientes
+## 4. WireGuard — Configurando Devices
 
 Os arquivos de configuração dos peers são gerados em:
 ```
-output-data/wireguard/config/peer_*/
+<STORAGE_PATH>/wireguard/config/peer_<nome>/
 ```
 
 Para cada peer há um arquivo `.conf` e um QR code `.png`.
 
-**No celular:** abra o app WireGuard → escaneie o QR code
-**No computador:** importe o arquivo `.conf` no app WireGuard
+### Listar peers existentes
 
-O DNS do WireGuard está configurado para apontar para o AdGuard interno,
-então os nomes de domínio funcionam normalmente com a VPN ativa.
+```bash
+ls <STORAGE_PATH>/wireguard/config/
+```
+
+Você verá diretórios como `peer_phone/`, `peer_laptop/`, etc.
+
+### Gerar QR Code de um peer
+
+**Exibir no terminal (requer `qrencode` instalado):**
+```bash
+docker exec wireguard show-peer <nome-do-device> | qrencode -t ANSIUTF8
+```
+
+**Exibir como texto (saída do container):**
+```bash
+docker exec wireguard show-peer <nome-do-device>
+```
+
+### Copiar arquivo de configuração
+
+```bash
+scp <STORAGE_PATH>/wireguard/config/peer_<nome>/peer_<nome>.conf usuario@desktop:~/Downloads/
+```
+
+### Conectar um device
+
+**Celular (iOS/Android):**
+1. Instale o app WireGuard
+2. Toque em "+" → "Criar a partir do código QR"
+3. Escaneie o QR code do peer desejado
+4. Dê um nome à conexão e ative o toggle
+
+**Computador (Windows/macOS/Linux):**
+1. Instale o app WireGuard
+2. Clique em "Importar túnel do arquivo"
+3. Selecione o arquivo `.conf` do peer
+4. Ative o túnel
+
+> O DNS do WireGuard está configurado para apontar para o AdGuard interno,
+> então os nomes de domínio funcionam normalmente com a VPN ativa.
+
+### Adicionar novos devices após o setup
+
+1. Edite o arquivo `output/.env` e atualize a variável:
+   ```
+   WIREGUARD_PEERS=phone,laptop,tablet,novo_device
+   ```
+2. Recrie o container do WireGuard:
+   ```bash
+   docker compose -f output/docker-compose.yml up -d --force-recreate wireguard
+   ```
+3. O novo peer será gerado automaticamente em `<STORAGE_PATH>/wireguard/config/peer_novo_device/`.
 
 ---
 

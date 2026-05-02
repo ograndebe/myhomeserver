@@ -62,6 +62,22 @@ docker compose -f output/docker-compose.yml up -d --force-recreate  # Rebuild af
 
 This repo has no test suite, linter, or type checker. Verify changes by running `./setup.py --dry-run` and inspecting generated output.
 
+## MySDD Skills (Specification-Driven Development)
+
+| Skill | Purpose |
+|---|---|
+| `mysdd-context` | Cria/atualiza `specs/context.md` — premissas invioláveis e checks |
+| `mysdd-backlog` | Gerencia `specs/backlog.md` — features, IDs (BACK-XXX), status |
+| `mysdd-spec` | Cria `specs/spec-###-nome/spec.md` — especificação detalhada |
+| `mysdd-plan` | Cria `specs/spec-###-nome/plan.md` — plano de implementação |
+| `mysdd-implement` | Executa o plan.md etapa a etapa, marca checkboxes, fecha spec |
+| `mysdd-triage` | Triagem de bugs — classifica sintoma e recomenda o caminho |
+| `mysdd-bugfix` | Cria `specs/fix-###-slug/` — correção de bugs em features done |
+
+**Fluxo de nova feature:** `context → backlog → spec → plan → implement`
+
+**Fluxo de bugfix:** `triage → bugfix` (cria fix-### com rastreabilidade à spec original)
+
 ## Documentation
 
 - `CONTEXT.md` — Technical specification (authoritative)
