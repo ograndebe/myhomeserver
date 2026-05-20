@@ -61,9 +61,57 @@ fi
 echo ""
 echo "🔧 Configurando Authentik..."
 cd /app
+
+# Cria token de API via Django ORM (contorna problema de CSRF no flow)
+echo "🔑 Criando token de API..."
+API_TOKEN=$(docker exec authentik-server ak shell -c "
+from authentik.core.models import User, Token, TokenIntents
+from authentik.lib.generators import generate_id
+user = User.objects.filter(email='${AUTHENTIK_INITIAL_ADMIN_EMAIL}').first()
+if user:
+    Token.objects.filter(user=user, identifier='bootstrap-token').delete()
+    token = Token.objects.create(
+        user=user,
+        identifier='bootstrap-token',
+        intent=TokenIntents.INTENT_API,
+        key=generate_id(),
+        expires=None,
+    )
+    print(token.key)
+" 2>/dev/null | tail -1)
+
+if [ -n "$API_TOKEN" ] && [ "$API_TOKEN" != "" ]; then
+    echo "✅ Token de API criado!"
+    export AUTHENTIK_API_TOKEN="$API_TOKEN"
+else
+    echo "⚠️  Não foi possível criar token de API, tentando via flow..."
+fi
+
 python3 scripts/authentik_bootstrap.py || {
     echo "⚠️  Bootstrap do Authentik falhou (pode ser executado novamente manualmente)"
 }
+
+# Cria outpost via Django ORM (não suportado via API REST)
+echo ""
+echo "🔗 Criando Outpost..."
+docker exec authentik-server ak shell -c "
+from authentik.outposts.models import Outpost, DockerServiceConnection
+from authentik.core.models import Application
+
+apps = Application.objects.filter(slug__in=['traefik', 'adguard'])
+if apps.exists():
+    Outpost.objects.update_or_create(
+        name='homeserver-proxy',
+        defaults={
+            'type': 'proxy',
+        }
+    )
+    outpost = Outpost.objects.get(name='homeserver-proxy')
+    outpost.applications.set(apps)
+    print('✅ Outpost criado/atualizado!')
+else:
+    print('⚠️  Aplicações não encontradas para outpost')
+" 2>/dev/null | tail -1
 
 echo ""
 echo "┌─────────────────────────────────────────────────┐"

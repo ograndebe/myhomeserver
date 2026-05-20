@@ -1,0 +1,29 @@
+  # ── Lidarr (música) ───────────────────────────────────────────────────────
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:3.1.0
+    container_name: lidarr
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-America/Sao_Paulo}
+    volumes:
+      - {{ storage_path }}/lidarr/config:/config
+      - {{ storage_path }}/media/music:/music
+      - {{ storage_path }}/downloads:/downloads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8686/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - proxy
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lidarr.rule=Host(`lidarr.{{ domain }}`)"
+      - "traefik.http.routers.lidarr.entrypoints=websecure"
+      - "traefik.http.routers.lidarr.tls.certresolver=letsencrypt"
+      - "traefik.http.services.lidarr.loadbalancer.server.port=8686"
+      - "traefik.http.routers.lidarr.middlewares=authentik@docker"

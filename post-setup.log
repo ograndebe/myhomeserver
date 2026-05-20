@@ -1,0 +1,339 @@
+
+┌─────────────────────────────────────────────────┐
+│  Homeserver Post-Setup                          │
+│  Subindo containers e configurando serviços     │
+└─────────────────────────────────────────────────┘
+
+📦 Subindo containers...
+#1 [internal] load local bake definitions
+#1 reading from stdin 522B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 30B
+#2 transferring dockerfile: 451B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 ...
+
+#4 [auth] library/python:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 1.8s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 164B done
+#5 DONE 0.0s
+
+#6 [1/4] FROM docker.io/library/python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3
+#6 resolve docker.io/library/python:3.12-slim@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 0.0s done
+#6 sha256:cb8c0a9140ac107575972113eb5fd2e6c3cdddc592371a5ac31c4623dcb13d5d 0B / 1.29MB 0.1s
+#6 sha256:4d873bcef452ab1c054b9a0f25ace04a446c558a7b925aed2fc5bc21533e0f65 0B / 12.10MB 0.1s
+#6 sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 10.37kB / 10.37kB done
+#6 sha256:4386a385d81dba9f72ed72a6fe4237755d7f5440c84b417650f38336bbc43117 1.75kB / 1.75kB done
+#6 sha256:7bf61a5ec2a4631b240bc8cf83404e2dd37fb06a4b4bbd34b2c36906a5fb4aee 5.66kB / 5.66kB done
+#6 sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd 0B / 29.78MB 0.1s
+#6 sha256:cb8c0a9140ac107575972113eb5fd2e6c3cdddc592371a5ac31c4623dcb13d5d 1.29MB / 1.29MB 0.5s
+#6 sha256:cb8c0a9140ac107575972113eb5fd2e6c3cdddc592371a5ac31c4623dcb13d5d 1.29MB / 1.29MB 0.5s done
+#6 sha256:4d873bcef452ab1c054b9a0f25ace04a446c558a7b925aed2fc5bc21533e0f65 3.15MB / 12.10MB 0.7s
+#6 sha256:3fc9d9ab5045181fbd49d1d30a2dbad144172d4c3c141f70117ddb0b918d8357 0B / 248B 0.7s
+#6 sha256:4d873bcef452ab1c054b9a0f25ace04a446c558a7b925aed2fc5bc21533e0f65 12.10MB / 12.10MB 0.9s
+#6 sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd 5.24MB / 29.78MB 0.9s
+#6 sha256:3fc9d9ab5045181fbd49d1d30a2dbad144172d4c3c141f70117ddb0b918d8357 248B / 248B 0.8s done
+#6 sha256:4d873bcef452ab1c054b9a0f25ace04a446c558a7b925aed2fc5bc21533e0f65 12.10MB / 12.10MB 1.0s done
+#6 sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd 16.78MB / 29.78MB 1.1s
+#6 sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd 28.31MB / 29.78MB 1.4s
+#6 sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd 29.78MB / 29.78MB 1.7s done
+#6 extracting sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd
+#6 extracting sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd 5.2s
+#6 extracting sha256:3531af2bc2a9c8883754652783cf96207d53189db279c9637b7157d034de7ecd 5.6s done
+#6 extracting sha256:cb8c0a9140ac107575972113eb5fd2e6c3cdddc592371a5ac31c4623dcb13d5d
+#6 extracting sha256:cb8c0a9140ac107575972113eb5fd2e6c3cdddc592371a5ac31c4623dcb13d5d 0.4s done
+#6 extracting sha256:4d873bcef452ab1c054b9a0f25ace04a446c558a7b925aed2fc5bc21533e0f65
+#6 extracting sha256:4d873bcef452ab1c054b9a0f25ace04a446c558a7b925aed2fc5bc21533e0f65 2.9s done
+#6 extracting sha256:3fc9d9ab5045181fbd49d1d30a2dbad144172d4c3c141f70117ddb0b918d8357
+#6 extracting sha256:3fc9d9ab5045181fbd49d1d30a2dbad144172d4c3c141f70117ddb0b918d8357 done
+#6 DONE 11.2s
+
+#7 [2/4] RUN apt-get update &&     apt-get install -y --no-install-recommends     curl     jq     && rm -rf /var/lib/apt/lists/*
+#7 0.272 Hit:1 http://deb.debian.org/debian trixie InRelease
+#7 0.272 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#7 0.276 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#7 0.301 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9671 kB]
+#7 0.423 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [5412 B]
+#7 0.423 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [130 kB]
+#7 1.528 Fetched 9897 kB in 1s (7722 kB/s)
+#7 1.528 Reading package lists...
+#7 2.405 Reading package lists...
+#7 3.211 Building dependency tree...
+#7 3.368 Reading state information...
+#7 3.681 The following additional packages will be installed:
+#7 3.681   libbrotli1 libcom-err2 libcurl4t64 libgnutls30t64 libgssapi-krb5-2 libidn2-0
+#7 3.681   libjq1 libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0 libldap2
+#7 3.682   libnghttp2-14 libnghttp3-9 libonig5 libp11-kit0 libpsl5t64 librtmp1
+#7 3.683   libsasl2-2 libsasl2-modules-db libssh2-1t64 libtasn1-6 libunistring5
+#7 3.685 Suggested packages:
+#7 3.685   gnutls-bin krb5-doc krb5-user
+#7 3.685 Recommended packages:
+#7 3.685   bash-completion krb5-locales libldap-common publicsuffix libsasl2-modules
+#7 3.925 The following NEW packages will be installed:
+#7 3.926   curl jq libbrotli1 libcom-err2 libcurl4t64 libgnutls30t64 libgssapi-krb5-2
+#7 3.926   libidn2-0 libjq1 libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0
+#7 3.927   libldap2 libnghttp2-14 libnghttp3-9 libonig5 libp11-kit0 libpsl5t64 librtmp1
+#7 3.927   libsasl2-2 libsasl2-modules-db libssh2-1t64 libtasn1-6 libunistring5
+#7 3.975 0 upgraded, 25 newly installed, 0 to remove and 0 not upgraded.
+#7 3.975 Need to get 5316 kB of archives.
+#7 3.975 After this operation, 16.0 MB of additional disk space will be used.
+#7 3.975 Get:1 http://deb.debian.org/debian trixie/main amd64 libbrotli1 amd64 1.1.0-2+b7 [307 kB]
+#7 3.990 Get:2 http://deb.debian.org/debian trixie/main amd64 libkrb5support0 amd64 1.21.3-5 [33.0 kB]
+#7 3.991 Get:3 http://deb.debian.org/debian trixie/main amd64 libcom-err2 amd64 1.47.2-3+b10 [25.0 kB]
+#7 3.992 Get:4 http://deb.debian.org/debian trixie/main amd64 libk5crypto3 amd64 1.21.3-5 [81.5 kB]
+#7 3.995 Get:5 http://deb.debian.org/debian trixie/main amd64 libkeyutils1 amd64 1.6.3-6 [9456 B]
+#7 3.995 Get:6 http://deb.debian.org/debian trixie/main amd64 libkrb5-3 amd64 1.21.3-5 [326 kB]
+#7 4.004 Get:7 http://deb.debian.org/debian trixie/main amd64 libgssapi-krb5-2 amd64 1.21.3-5 [138 kB]
+#7 4.006 Get:8 http://deb.debian.org/debian trixie/main amd64 libunistring5 amd64 1.3-2 [477 kB]
+#7 4.016 Get:9 http://deb.debian.org/debian trixie/main amd64 libidn2-0 amd64 2.3.8-2 [109 kB]
+#7 4.018 Get:10 http://deb.debian.org/debian trixie/main amd64 libsasl2-modules-db amd64 2.1.28+dfsg1-9 [19.8 kB]
+#7 4.018 Get:11 http://deb.debian.org/debian trixie/main amd64 libsasl2-2 amd64 2.1.28+dfsg1-9 [57.5 kB]
+#7 4.019 Get:12 http://deb.debian.org/debian trixie/main amd64 libldap2 amd64 2.6.10+dfsg-1 [194 kB]
+#7 4.023 Get:13 http://deb.debian.org/debian trixie/main amd64 libnghttp2-14 amd64 1.64.0-1.1 [76.0 kB]
+#7 4.026 Get:14 http://deb.debian.org/debian trixie/main amd64 libnghttp3-9 amd64 1.8.0-1 [67.7 kB]
+#7 4.028 Get:15 http://deb.debian.org/debian trixie/main amd64 libpsl5t64 amd64 0.21.2-1.1+b1 [57.2 kB]
+#7 4.029 Get:16 http://deb.debian.org/debian trixie/main amd64 libp11-kit0 amd64 0.25.5-3 [425 kB]
+#7 4.034 Get:17 http://deb.debian.org/debian trixie/main amd64 libtasn1-6 amd64 4.20.0-2 [49.9 kB]
+#7 4.038 Get:18 http://deb.debian.org/debian trixie/main amd64 libgnutls30t64 amd64 3.8.9-3+deb13u2 [1468 kB]
+#7 4.058 Get:19 http://deb.debian.org/debian trixie/main amd64 librtmp1 amd64 2.4+20151223.gitfa8646d.1-2+b5 [58.8 kB]
+#7 4.059 Get:20 http://deb.debian.org/debian trixie/main amd64 libssh2-1t64 amd64 1.11.1-1 [245 kB]
+#7 4.062 Get:21 http://deb.debian.org/debian trixie/main amd64 libcurl4t64 amd64 8.14.1-2+deb13u2 [391 kB]
+#7 4.067 Get:22 http://deb.debian.org/debian trixie/main amd64 curl amd64 8.14.1-2+deb13u2 [270 kB]
+#7 4.073 Get:23 http://deb.debian.org/debian trixie/main amd64 libonig5 amd64 6.9.9-1+b1 [189 kB]
+#7 4.075 Get:24 http://deb.debian.org/debian trixie/main amd64 libjq1 amd64 1.7.1-6+deb13u1 [164 kB]
+#7 4.077 Get:25 http://deb.debian.org/debian trixie/main amd64 jq amd64 1.7.1-6+deb13u1 [77.7 kB]
+#7 4.312 debconf: unable to initialize frontend: Dialog
+#7 4.312 debconf: (TERM is not set, so the dialog frontend is not usable.)
+#7 4.312 debconf: falling back to frontend: Readline
+#7 4.312 debconf: unable to initialize frontend: Readline
+#7 4.312 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/x86_64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8, <STDIN> line 25.)
+#7 4.312 debconf: falling back to frontend: Teletype
+#7 4.323 debconf: unable to initialize frontend: Teletype
+#7 4.323 debconf: (This frontend requires a controlling tty.)
+#7 4.323 debconf: falling back to frontend: Noninteractive
+#7 5.167 Fetched 5316 kB in 0s (41.0 MB/s)
+#7 5.205 Selecting previously unselected package libbrotli1:amd64.
+#7 5.205 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 5645 files and directories currently installed.)
+#7 5.213 Preparing to unpack .../00-libbrotli1_1.1.0-2+b7_amd64.deb ...
+#7 5.220 Unpacking libbrotli1:amd64 (1.1.0-2+b7) ...
+#7 5.290 Selecting previously unselected package libkrb5support0:amd64.
+#7 5.292 Preparing to unpack .../01-libkrb5support0_1.21.3-5_amd64.deb ...
+#7 5.297 Unpacking libkrb5support0:amd64 (1.21.3-5) ...
+#7 5.338 Selecting previously unselected package libcom-err2:amd64.
+#7 5.340 Preparing to unpack .../02-libcom-err2_1.47.2-3+b10_amd64.deb ...
+#7 5.344 Unpacking libcom-err2:amd64 (1.47.2-3+b10) ...
+#7 5.393 Selecting previously unselected package libk5crypto3:amd64.
+#7 5.395 Preparing to unpack .../03-libk5crypto3_1.21.3-5_amd64.deb ...
+#7 5.399 Unpacking libk5crypto3:amd64 (1.21.3-5) ...
+#7 5.458 Selecting previously unselected package libkeyutils1:amd64.
+#7 5.460 Preparing to unpack .../04-libkeyutils1_1.6.3-6_amd64.deb ...
+#7 5.464 Unpacking libkeyutils1:amd64 (1.6.3-6) ...
+#7 5.507 Selecting previously unselected package libkrb5-3:amd64.
+#7 5.509 Preparing to unpack .../05-libkrb5-3_1.21.3-5_amd64.deb ...
+#7 5.513 Unpacking libkrb5-3:amd64 (1.21.3-5) ...
+#7 5.593 Selecting previously unselected package libgssapi-krb5-2:amd64.
+#7 5.596 Preparing to unpack .../06-libgssapi-krb5-2_1.21.3-5_amd64.deb ...
+#7 5.599 Unpacking libgssapi-krb5-2:amd64 (1.21.3-5) ...
+#7 5.649 Selecting previously unselected package libunistring5:amd64.
+#7 5.651 Preparing to unpack .../07-libunistring5_1.3-2_amd64.deb ...
+#7 5.659 Unpacking libunistring5:amd64 (1.3-2) ...
+#7 5.747 Selecting previously unselected package libidn2-0:amd64.
+#7 5.749 Preparing to unpack .../08-libidn2-0_2.3.8-2_amd64.deb ...
+#7 5.754 Unpacking libidn2-0:amd64 (2.3.8-2) ...
+#7 5.806 Selecting previously unselected package libsasl2-modules-db:amd64.
+#7 5.808 Preparing to unpack .../09-libsasl2-modules-db_2.1.28+dfsg1-9_amd64.deb ...
+#7 5.812 Unpacking libsasl2-modules-db:amd64 (2.1.28+dfsg1-9) ...
+#7 5.857 Selecting previously unselected package libsasl2-2:amd64.
+#7 5.859 Preparing to unpack .../10-libsasl2-2_2.1.28+dfsg1-9_amd64.deb ...
+#7 5.863 Unpacking libsasl2-2:amd64 (2.1.28+dfsg1-9) ...
+#7 5.913 Selecting previously unselected package libldap2:amd64.
+#7 5.915 Preparing to unpack .../11-libldap2_2.6.10+dfsg-1_amd64.deb ...
+#7 5.919 Unpacking libldap2:amd64 (2.6.10+dfsg-1) ...
+#7 5.973 Selecting previously unselected package libnghttp2-14:amd64.
+#7 5.975 Preparing to unpack .../12-libnghttp2-14_1.64.0-1.1_amd64.deb ...
+#7 5.979 Unpacking libnghttp2-14:amd64 (1.64.0-1.1) ...
+#7 6.022 Selecting previously unselected package libnghttp3-9:amd64.
+#7 6.024 Preparing to unpack .../13-libnghttp3-9_1.8.0-1_amd64.deb ...
+#7 6.028 Unpacking libnghttp3-9:amd64 (1.8.0-1) ...
+#7 6.073 Selecting previously unselected package libpsl5t64:amd64.
+#7 6.075 Preparing to unpack .../14-libpsl5t64_0.21.2-1.1+b1_amd64.deb ...
+#7 6.080 Unpacking libpsl5t64:amd64 (0.21.2-1.1+b1) ...
+#7 6.129 Selecting previously unselected package libp11-kit0:amd64.
+#7 6.131 Preparing to unpack .../15-libp11-kit0_0.25.5-3_amd64.deb ...
+#7 6.135 Unpacking libp11-kit0:amd64 (0.25.5-3) ...
+#7 6.209 Selecting previously unselected package libtasn1-6:amd64.
+#7 6.211 Preparing to unpack .../16-libtasn1-6_4.20.0-2_amd64.deb ...
+#7 6.215 Unpacking libtasn1-6:amd64 (4.20.0-2) ...
+#7 6.257 Selecting previously unselected package libgnutls30t64:amd64.
+#7 6.260 Preparing to unpack .../17-libgnutls30t64_3.8.9-3+deb13u2_amd64.deb ...
+#7 6.263 Unpacking libgnutls30t64:amd64 (3.8.9-3+deb13u2) ...
+#7 6.374 Selecting previously unselected package librtmp1:amd64.
+#7 6.376 Preparing to unpack .../18-librtmp1_2.4+20151223.gitfa8646d.1-2+b5_amd64.deb ...
+#7 6.380 Unpacking librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b5) ...
+#7 6.423 Selecting previously unselected package libssh2-1t64:amd64.
+#7 6.425 Preparing to unpack .../19-libssh2-1t64_1.11.1-1_amd64.deb ...
+#7 6.429 Unpacking libssh2-1t64:amd64 (1.11.1-1) ...
+#7 6.481 Selecting previously unselected package libcurl4t64:amd64.
+#7 6.483 Preparing to unpack .../20-libcurl4t64_8.14.1-2+deb13u2_amd64.deb ...
+#7 6.486 Unpacking libcurl4t64:amd64 (8.14.1-2+deb13u2) ...
+#7 6.552 Selecting previously unselected package curl.
+#7 6.554 Preparing to unpack .../21-curl_8.14.1-2+deb13u2_amd64.deb ...
+#7 6.558 Unpacking curl (8.14.1-2+deb13u2) ...
+#7 6.617 Selecting previously unselected package libonig5:amd64.
+#7 6.619 Preparing to unpack .../22-libonig5_6.9.9-1+b1_amd64.deb ...
+#7 6.623 Unpacking libonig5:amd64 (6.9.9-1+b1) ...
+#7 6.685 Selecting previously unselected package libjq1:amd64.
+#7 6.687 Preparing to unpack .../23-libjq1_1.7.1-6+deb13u1_amd64.deb ...
+#7 6.691 Unpacking libjq1:amd64 (1.7.1-6+deb13u1) ...
+#7 6.737 Selecting previously unselected package jq.
+#7 6.739 Preparing to unpack .../24-jq_1.7.1-6+deb13u1_amd64.deb ...
+#7 6.743 Unpacking jq (1.7.1-6+deb13u1) ...
+#7 6.787 Setting up libkeyutils1:amd64 (1.6.3-6) ...
+#7 6.798 Setting up libbrotli1:amd64 (1.1.0-2+b7) ...
+#7 6.809 Setting up libnghttp2-14:amd64 (1.64.0-1.1) ...
+#7 6.821 Setting up libcom-err2:amd64 (1.47.2-3+b10) ...
+#7 6.832 Setting up libkrb5support0:amd64 (1.21.3-5) ...
+#7 6.844 Setting up libsasl2-modules-db:amd64 (2.1.28+dfsg1-9) ...
+#7 6.855 Setting up libp11-kit0:amd64 (0.25.5-3) ...
+#7 6.867 Setting up libunistring5:amd64 (1.3-2) ...
+#7 6.879 Setting up libk5crypto3:amd64 (1.21.3-5) ...
+#7 6.891 Setting up libsasl2-2:amd64 (2.1.28+dfsg1-9) ...
+#7 6.910 Setting up libnghttp3-9:amd64 (1.8.0-1) ...
+#7 6.922 Setting up libtasn1-6:amd64 (4.20.0-2) ...
+#7 6.935 Setting up libkrb5-3:amd64 (1.21.3-5) ...
+#7 6.947 Setting up libssh2-1t64:amd64 (1.11.1-1) ...
+#7 6.960 Setting up libldap2:amd64 (2.6.10+dfsg-1) ...
+#7 6.972 Setting up libonig5:amd64 (6.9.9-1+b1) ...
+#7 6.985 Setting up libjq1:amd64 (1.7.1-6+deb13u1) ...
+#7 6.998 Setting up libidn2-0:amd64 (2.3.8-2) ...
+#7 7.012 Setting up libgssapi-krb5-2:amd64 (1.21.3-5) ...
+#7 7.028 Setting up jq (1.7.1-6+deb13u1) ...
+#7 7.039 Setting up libgnutls30t64:amd64 (3.8.9-3+deb13u2) ...
+#7 7.052 Setting up libpsl5t64:amd64 (0.21.2-1.1+b1) ...
+#7 7.065 Setting up librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2+b5) ...
+#7 7.078 Setting up libcurl4t64:amd64 (8.14.1-2+deb13u2) ...
+#7 7.090 Setting up curl (8.14.1-2+deb13u2) ...
+#7 7.104 Processing triggers for libc-bin (2.41-12+deb13u2) ...
+#7 DONE 8.3s
+
+#8 [3/4] RUN pip install --no-cache-dir     requests     python-dotenv     rich
+#8 2.468 Collecting requests
+#8 2.508   Downloading requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)
+#8 2.533 Collecting python-dotenv
+#8 2.540   Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+#8 2.614 Collecting rich
+#8 2.622   Downloading rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+#8 2.780 Collecting charset_normalizer<4,>=2 (from requests)
+#8 2.787   Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+#8 2.812 Collecting idna<4,>=2.5 (from requests)
+#8 2.819   Downloading idna-3.13-py3-none-any.whl.metadata (8.0 kB)
+#8 2.862 Collecting urllib3<3,>=1.26 (from requests)
+#8 2.869   Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+#8 2.899 Collecting certifi>=2023.5.7 (from requests)
+#8 2.906   Downloading certifi-2026.4.22-py3-none-any.whl.metadata (2.5 kB)
+#8 2.929 Collecting markdown-it-py>=2.2.0 (from rich)
+#8 2.936   Downloading markdown_it_py-4.0.0-py3-none-any.whl.metadata (7.3 kB)
+#8 2.972 Collecting pygments<3.0.0,>=2.13.0 (from rich)
+#8 2.979   Downloading pygments-2.20.0-py3-none-any.whl.metadata (2.5 kB)
+#8 2.995 Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich)
+#8 3.002   Downloading mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+#8 3.015 Downloading requests-2.33.1-py3-none-any.whl (64 kB)
+#8 3.021 Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+#8 3.028 Downloading rich-15.0.0-py3-none-any.whl (310 kB)
+#8 3.041 Downloading certifi-2026.4.22-py3-none-any.whl (135 kB)
+#8 3.047 Downloading charset_normalizer-3.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (216 kB)
+#8 3.053 Downloading idna-3.13-py3-none-any.whl (68 kB)
+#8 3.061 Downloading markdown_it_py-4.0.0-py3-none-any.whl (87 kB)
+#8 3.069 Downloading pygments-2.20.0-py3-none-any.whl (1.2 MB)
+#8 3.084    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 106.7 MB/s eta 0:00:00
+#8 3.091 Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+#8 3.097 Downloading mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+#8 3.183 Installing collected packages: urllib3, python-dotenv, pygments, mdurl, idna, charset_normalizer, certifi, requests, markdown-it-py, rich
+#8 4.914 Successfully installed certifi-2026.4.22 charset_normalizer-3.4.7 idna-3.13 markdown-it-py-4.0.0 mdurl-0.1.2 pygments-2.20.0 python-dotenv-1.2.2 requests-2.33.1 rich-15.0.0 urllib3-2.6.3
+#8 4.914 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#8 5.018 
+#8 5.018 [notice] A new release of pip is available: 25.0.1 -> 26.1
+#8 5.018 [notice] To update, run: pip install --upgrade pip
+#8 DONE 5.3s
+
+#9 [4/4] WORKDIR /app
+#9 DONE 0.0s
+
+#10 exporting to image
+#10 exporting layers
+#10 exporting layers 1.8s done
+#10 writing image sha256:ac336e7bc8a1e17bc1c90165ca25506edafb7cfd9a2d525e36c607236ff67f45 done
+#10 naming to docker.io/library/output-bootstrap done
+#10 DONE 1.8s
+
+#11 resolving provenance for metadata file
+#11 DONE 0.0s
+
+⏳ Aguardando bootstrap container configurar os serviços...
+   (isso pode levar 2-3 minutos)
+
+homeserver-bootstrap  | 
+homeserver-bootstrap  | ┌─────────────────────────────────────────────────┐
+homeserver-bootstrap  | │  Homeserver Bootstrap Container                 │
+homeserver-bootstrap  | │  Configurando serviços automaticamente          │
+homeserver-bootstrap  | └─────────────────────────────────────────────────┘
+homeserver-bootstrap  | 
+homeserver-bootstrap  | 
+homeserver-bootstrap  | 🔍 Verificando saúde dos serviços...
+homeserver-bootstrap  | ⏳ Aguardando Authentik...
+homeserver-bootstrap  | ✅ Authentik está pronto!
+homeserver-bootstrap  | 
+homeserver-bootstrap  | ✅ Todos os serviços verificados!
+homeserver-bootstrap  | 
+homeserver-bootstrap  | 🚀 Executando scripts de bootstrap...
+homeserver-bootstrap  | 
+homeserver-bootstrap  | 🔧 Configurando Authentik...
+homeserver-bootstrap  | 
+homeserver-bootstrap  | ┌─────────────────────────────────────────────────┐
+homeserver-bootstrap  | │  Authentik Bootstrap                            │
+homeserver-bootstrap  | │  Domínio: maroto.online
+homeserver-bootstrap  | │  Admin: admin@maroto.online
+homeserver-bootstrap  | └─────────────────────────────────────────────────┘
+homeserver-bootstrap  | 
+homeserver-bootstrap  | ⏳ Aguardando Authentik iniciar...
+homeserver-bootstrap  | ✅ Authentik está pronto!
+homeserver-bootstrap  | 
+homeserver-bootstrap  | 🔑 Autenticando como admin...
+homeserver-bootstrap  | ❌ Login falhou: 405
+homeserver-bootstrap  | Response: 
+homeserver-bootstrap  | ❌ Não foi possível autenticar!
+homeserver-bootstrap  | ⚠️  Bootstrap do Authentik falhou (pode ser executado novamente manualmente)
+homeserver-bootstrap  | 
+homeserver-bootstrap  | ┌─────────────────────────────────────────────────┐
+homeserver-bootstrap  | │  ✅ Bootstrap concluído!                        │
+homeserver-bootstrap  | │                                                 │
+homeserver-bootstrap  | │  Serviços configurados:                         │
+homeserver-bootstrap  | │  - Traefik Dashboard                            │
+homeserver-bootstrap  | │  - AdGuard DNS                                  │
+homeserver-bootstrap  | │                                                 │
+homeserver-bootstrap  | │  Acesse:                                        │
+homeserver-bootstrap  | │  - https://auth.maroto.online                   │
+homeserver-bootstrap  | │  - https://traefik.maroto.online                │
+homeserver-bootstrap  | │  - https://dns.maroto.online                    │
+homeserver-bootstrap  | └─────────────────────────────────────────────────┘
+homeserver-bootstrap  | 
+[Khomeserver-bootstrap exited with code 0
+
+┌─────────────────────────────────────────────────┐
+│  ✅ Setup concluído com sucesso!                │
+│                                                 │
+│  Acesse:                                        │
+│  - Authentik: https://auth.maroto.online        │
+│  - Traefik: https://traefik.maroto.online       │
+│  - AdGuard: https://dns.maroto.online           │
+│  - Teste: https://test.maroto.online            │
+└─────────────────────────────────────────────────┘

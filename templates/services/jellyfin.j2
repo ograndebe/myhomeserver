@@ -1,6 +1,6 @@
   # ── Jellyfin ──────────────────────────────────────────────────────────────
   jellyfin:
-    image: jellyfin/jellyfin:latest
+    image: jellyfin/jellyfin:10.10.5
     container_name: jellyfin
     restart: unless-stopped
     group_add:
@@ -17,6 +17,12 @@
       - {{ storage_path }}/media/movies:/data/movies
       - {{ storage_path }}/media/shows:/data/shows
       - {{ storage_path }}/media/music:/data/music
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8096/system/info/public || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - proxy
       - internal

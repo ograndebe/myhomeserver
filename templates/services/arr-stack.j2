@@ -1,6 +1,6 @@
   # ── Prowlarr (indexador central) ─────────────────────────────────────────
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
+    image: lscr.io/linuxserver/prowlarr:2.3.5
     container_name: prowlarr
     restart: unless-stopped
     environment:
@@ -9,6 +9,12 @@
       - TZ=${TZ:-America/Sao_Paulo}
     volumes:
       - {{ storage_path }}/prowlarr/config:/config
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9696/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - proxy
       - internal
@@ -22,7 +28,7 @@
 
   # ── Radarr (filmes) ───────────────────────────────────────────────────────
   radarr:
-    image: lscr.io/linuxserver/radarr:latest
+    image: lscr.io/linuxserver/radarr:6.1.1
     container_name: radarr
     restart: unless-stopped
     environment:
@@ -33,6 +39,12 @@
       - {{ storage_path }}/radarr/config:/config
       - {{ storage_path }}/media/movies:/movies
       - {{ storage_path }}/downloads:/downloads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7878/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - proxy
       - internal
@@ -46,7 +58,7 @@
 
   # ── Sonarr (séries) ───────────────────────────────────────────────────────
   sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
+    image: lscr.io/linuxserver/sonarr:4.0.17
     container_name: sonarr
     restart: unless-stopped
     environment:
@@ -57,6 +69,12 @@
       - {{ storage_path }}/sonarr/config:/config
       - {{ storage_path }}/media/shows:/tv
       - {{ storage_path }}/downloads:/downloads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8989/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - proxy
       - internal
@@ -70,7 +88,7 @@
 
   # ── Bazarr (legendas) ─────────────────────────────────────────────────────
   bazarr:
-    image: lscr.io/linuxserver/bazarr:latest
+    image: lscr.io/linuxserver/bazarr:1.5.6
     container_name: bazarr
     restart: unless-stopped
     environment:
@@ -81,6 +99,12 @@
       - {{ storage_path }}/bazarr/config:/config
       - {{ storage_path }}/media/movies:/movies
       - {{ storage_path }}/media/shows:/tv
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6767/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - proxy
       - internal
@@ -94,7 +118,7 @@
 
   # ── qBittorrent (cliente de download) ────────────────────────────────────
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
+    image: lscr.io/linuxserver/qbittorrent:5.1.4
     container_name: qbittorrent
     restart: unless-stopped
     environment:
@@ -105,6 +129,12 @@
     volumes:
       - {{ storage_path }}/qbittorrent/config:/config
       - {{ storage_path }}/downloads:/downloads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v2/app/version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - proxy
       - internal

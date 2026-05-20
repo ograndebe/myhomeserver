@@ -1,0 +1,22 @@
+  # ── Unpackerr (extração automática de downloads) ──────────────────────────
+  unpackerr:
+    image: golift/unpackerr:0.15.2
+    container_name: unpackerr
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-America/Sao_Paulo}
+      - UN_RADARR_0_URL=http://radarr:7878
+      - UN_RADARR_0_API_KEY=${RADARR_API_KEY:-}
+      - UN_SONARR_0_URL=http://sonarr:8989
+      - UN_SONARR_0_API_KEY=${SONARR_API_KEY:-}
+      - UN_LIDARR_0_URL=http://lidarr:8686
+      - UN_LIDARR_0_API_KEY=${LIDARR_API_KEY:-}
+      - UN_FOLDER_0_PATH={{ storage_path }}/downloads
+      - UN_FOLDER_0_DELETE_AFTER=0
+    volumes:
+      - {{ storage_path }}/downloads:/downloads
+      - {{ storage_path }}/radarr/config:/radarr-config
+      - {{ storage_path }}/sonarr/config:/sonarr-config
+      - {{ storage_path }}/lidarr/config:/lidarr-config
+    networks:
+      - internal

@@ -222,6 +222,7 @@ services:
     container_name: homeserver-bootstrap
     volumes:
       - ../bootstrap/scripts:/app/scripts:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DOMAIN={{ domain }}
       - AUTHENTIK_INITIAL_ADMIN_EMAIL={{ authentik_email }}
@@ -239,6 +240,10 @@ services:
 {% if enable_jellyfin %}
   {% include 'services/jellyfin.j2' %}
   {% include 'services/arr-stack.j2' %}
+  {% include 'services/lidarr.j2' %}
+  {% include 'services/jellyseerr.j2' %}
+  {% include 'services/unpackerr.j2' %}
+  {% include 'services/post-setup.j2' %}
 {% endif %}
 {% if enable_nextcloud %}
   {% include 'services/nextcloud.j2' %}

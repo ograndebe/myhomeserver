@@ -226,3 +226,75 @@ docker compose -f output/docker-compose.yml up -d --force-recreate
 - **Certificado wildcard**: Traefik usa challenge DNS-01 para emitir `*.dominio.com`, eliminando a necessidade de expor a porta 80 externamente.
 - **Tráfego sempre interno**: AdGuard resolve o domínio para o IP local; o tráfego nunca sai da rede mesmo usando um domínio público.
 - **Sem dependência de sistema além do `uv`**: o script não assume `pip`, `python3` no PATH, ou virtualenv ativo.
+
+---
+
+## Padrão de Inicialização de Containers
+
+Todo container no projeto segue um padrão unificado de inicialização para permitir customização automática (post-setup) sem sidecars ou dependências externas.
+
+### Estrutura
+
+```
+custom-entrypoint.sh
+  └── post-setup.sh (montado via volume ou embutido)
+        └── exec "$@" (chama o entrypoint original do container)
+```
+
+### Fluxo de Execução
+
+1. **`custom-entrypoint.sh`** é definido como `entrypoint` do container no docker-compose.
+2. Ao iniciar, executa **`post-setup.sh`**, que contém toda lógica de customização necessária:
+   - Comandos no banco de dados
+   - Geração de configs iniciais
+   - Acesso a volumes montados especificamente para isso
+   - Qualquer outra configuração pré-inicialização
+3. Ao final, `post-setup.sh` chama **`exec "$@"`**, que delega para o entrypoint original do container (passado como `command` ou herdado da imagem).
+
+### Regras
+
+- **Sem sidecars**: toda customização acontece dentro do próprio container.
+- **Sem Docker socket**: o container não precisa controlar o Docker host.
+- **Volume de scripts**: scripts de post-setup são montados via volume `ro` ou embutidos na imagem.
+- **Idempotência**: `post-setup.sh` deve ser seguro para re-execução (ex: verificar se já foi rodado, usar flags, ou ser naturalmente idempotente).
+- **Fallback**: se `post-setup.sh` falhar, o container não deve iniciar (fail-fast).
+
+### Exemplo no docker-compose
+
+```yaml
+servico:
+  image: imagem:tag
+  entrypoint: ["/custom-entrypoint.sh"]
+  command: ["comando", "original", "do", "container"]
+  volumes:
+    - ../scripts/servico/post-setup.sh:/post-setup.sh:ro
+    - ../scripts/servico/custom-entrypoint.sh:/custom-entrypoint.sh:ro
+```
+
+### Exemplo de `custom-entrypoint.sh`
+
+```bash
+#!/bin/sh
+set -e
+
+echo "Running post-setup for service..."
+/post-setup.sh
+
+echo "Starting original process..."
+exec "$@"
+```
+
+### Exemplo de `post-setup.sh`
+
+```bash
+#!/bin/sh
+set -e
+
+# Exemplo: rodar comandos no banco via CLI do serviço
+if [ ! -f /data/.post-setup-done ]; then
+  echo "Initial setup..."
+  # comandos de setup
+  touch /data/.post-setup-done
+fi
+```
+

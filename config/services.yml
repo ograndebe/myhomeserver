@@ -35,15 +35,21 @@ optional:
     includes:
       - radarr
       - sonarr
+      - lidarr
       - prowlarr
       - qbittorrent
       - bazarr
+      - jellyseerr
+      - unpackerr
     ports: []
     subdomains:
       - { subdomain: radarr, name: Radarr }
       - { subdomain: sonarr, name: Sonarr }
+      - { subdomain: lidarr, name: Lidarr }
       - { subdomain: prowlarr, name: Prowlarr }
+      - { subdomain: qbit, name: qBittorrent }
       - { subdomain: bazarr, name: Bazarr }
+      - { subdomain: jellyseerr, name: Jellyseerr }
 
   - id: nextcloud
     name: Nextcloud

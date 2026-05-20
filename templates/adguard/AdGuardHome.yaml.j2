@@ -17,8 +17,7 @@ auth_attempts: 5
 block_auth_min: 15
 
 dns:
-  bind_hosts:
-    - 0.0.0.0
+  bind_host: "0.0.0.0"
   port: 53
   rewrites:
     # Domínio principal e curinga
@@ -34,9 +33,15 @@ dns:
       answer: "{{ local_ip }}"
     - domain: "sonarr.{{ domain }}"
       answer: "{{ local_ip }}"
+    - domain: "lidarr.{{ domain }}"
+      answer: "{{ local_ip }}"
     - domain: "prowlarr.{{ domain }}"
       answer: "{{ local_ip }}"
+    - domain: "qbit.{{ domain }}"
+      answer: "{{ local_ip }}"
     - domain: "bazarr.{{ domain }}"
+      answer: "{{ local_ip }}"
+    - domain: "jellyseerr.{{ domain }}"
       answer: "{{ local_ip }}"
 {% endif %}
 {% if enable_nextcloud %}

@@ -39,8 +39,8 @@ def wait_for_authentik(base_url: str, max_retries: int = 30) -> bool:
     return False
 
 
-def get_admin_session(base_url: str, email: str, password: str):
-    """Cria uma sessão autenticada como admin."""
+def get_api_token(base_url: str, email: str, password: str):
+    """Obtém uma sessão autenticada via flow do Authentik."""
     try:
         session = requests.Session()
         session.verify = False
@@ -49,53 +49,79 @@ def get_admin_session(base_url: str, email: str, password: str):
         r = session.get(f"{base_url}/if/admin/", timeout=10)
         if r.status_code != 200:
             print(f"❌ Não consegui acessar {base_url}/if/admin/ (status: {r.status_code})")
-            return None
+            return None, None
 
         # 2. Obtém CSRF token do cookie
-        csrf_token = session.cookies.get("authentik_csrf")
+        csrf_token = session.cookies.get("csrftoken") or session.cookies.get("authentik_csrf")
         if not csrf_token:
             print("❌ CSRF cookie não encontrado")
-            return None
+            print(f"Cookies disponíveis: {list(session.cookies.keys())}")
+            return None, None
 
-        # 3. Faz login via flow com CSRF
+        # 3. Inicia o flow de autenticação (POST vazio)
         r = session.post(
             f"{base_url}/if/flow/default-authentication-flow/",
-            data={
+            json={},
+            headers={
+                "Referer": f"{base_url}/if/admin/",
+                "X-CSRFToken": csrf_token,
+            },
+            timeout=10,
+        )
+
+        if r.status_code != 200:
+            print(f"❌ Flow initiation falhou: {r.status_code}")
+            print(f"Response: {r.text[:200]}")
+            return None, None
+
+        flow_data = r.json()
+        component = flow_data.get("component", "")
+        pending = flow_data.get("pending", "")
+
+        # 4. Envia credenciais
+        r = session.post(
+            f"{base_url}/if/flow/default-authentication-flow/",
+            json={
                 "uid": email,
                 "password": password,
-                "csrfmiddlewaretoken": csrf_token,
+                "component": component,
             },
-            headers={"Referer": f"{base_url}/if/admin/"},
+            headers={
+                "Referer": f"{base_url}/if/admin/",
+                "X-CSRFToken": csrf_token,
+                "X-authentik-authorization": pending,
+            },
             timeout=10,
-            allow_redirects=True,
         )
 
         if r.status_code == 200:
-            # Verifica se está autenticado
-            session_id = session.cookies.get("authentik_session")
-            if session_id:
+            result = r.json()
+            if result.get("component") == "ak-stage-completion":
                 print("✅ Login admin realizado com sucesso!")
-                return session
+                return session, None
+            elif "redirect" in result:
+                print("✅ Login realizado (redirect)")
+                return session, None
             else:
-                print("⚠️  Login OK mas session cookie não encontrado")
-                print(f"Response URL: {r.url}")
+                print(f"⚠️  Resposta inesperada: {result.get('component', 'unknown')}")
+                print(f"Response: {json.dumps(result, indent=2)[:300]}")
                 # Mesmo assim retorna session
-                return session
+                return session, None
 
         print(f"❌ Login falhou: {r.status_code}")
         print(f"Response: {r.text[:200]}")
-        return None
+        return None, None
 
     except Exception as e:
         print(f"❌ Erro no login: {e}")
-        return None
+        return None, None
 
 
 def get_default_flow(base_url: str, session):
     """Obtém o UUID do default-authentication-flow."""
     try:
         r = session.get(
-            f"{base_url}/api/v3/flows/",
+            f"{base_url}/api/v3/flows/instances/",
             params={"slug": "default-authentication-flow"},
             timeout=10,
         )
@@ -105,8 +131,8 @@ def get_default_flow(base_url: str, session):
             if results:
                 return results[0]["pk"]
 
-        # Fallback
-        r = session.get(f"{base_url}/api/v3/flows/", timeout=10)
+        # Fallback: lista todos os flows
+        r = session.get(f"{base_url}/api/v3/flows/instances/", timeout=10)
         if r.status_code == 200:
             for flow in r.json().get("results", []):
                 if "authentication" in flow.get("name", "").lower():
@@ -181,7 +207,6 @@ def get_or_create_application(base_url, session, name, slug, provider_pk):
                 "provider": provider_pk,
                 "backchannel_providers": [],
                 "policy_engine_mode": "any",
-                "group": None,
             },
             timeout=10,
         )
@@ -267,12 +292,24 @@ def main():
     if not wait_for_authentik(base_url):
         sys.exit(1)
 
-    # 2. Autentica
+    # 2. Autentica e obtém token
     print("\n🔑 Autenticando como admin...")
-    session = get_admin_session(base_url, email, password)
-    if not session:
-        print("❌ Não foi possível autenticar!")
-        sys.exit(1)
+    api_token = get_env("AUTHENTIK_API_TOKEN", "")
+    session = requests.Session()
+    session.verify = False
+
+    if api_token:
+        # Usa token criado via Django ORM
+        session.headers.update({"Authorization": f"Bearer {api_token}"})
+        print("✅ Token de API fornecido via ambiente!")
+    else:
+        # Fallback: tenta obter token via flow
+        session, api_token = get_api_token(base_url, email, password)
+        if not session:
+            print("❌ Não foi possível autenticar!")
+            sys.exit(1)
+        if api_token:
+            session.headers.update({"Authorization": f"Bearer {api_token}"})
 
     # 3. Obtém flow
     print("\n🔍 Obtendo authentication flow...")
@@ -310,15 +347,6 @@ def main():
         )
         if app_pk:
             app_ids[name] = app_pk
-
-    # 6. Cria outpost
-    print("\n🔗 Criando Outpost...")
-    if app_ids:
-        outpost_pk = get_or_create_outpost(
-            base_url, session, "homeserver-proxy", list(app_ids.values())
-        )
-        if outpost_pk:
-            print(f"✅ Outpost criado (id: {outpost_pk})")
 
     print("\n" + "="*50)
     print("✅ Authentik configurado com sucesso!")

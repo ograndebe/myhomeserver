@@ -40,6 +40,13 @@ TEMPLATES = ROOT / "templates"
 CONFIG = ROOT / "config" / "services.yml"
 
 
+def _parse_bool(value: str, default: bool = False) -> bool:
+    """Parse a boolean value from .env string."""
+    if value is None:
+        return default
+    return str(value).lower() in ("true", "1", "yes")
+
+
 def load_existing_env() -> dict:
     """Carrega variáveis de .env existente no diretório do setup.py."""
     env_path = ROOT / ".env"
@@ -62,6 +69,10 @@ def load_existing_env() -> dict:
         ),
         "authentik_password": os.getenv("AUTHENTIK_INITIAL_ADMIN_PASSWORD", ""),
         "wireguard_peers": os.getenv("WIREGUARD_PEERS", ""),
+        "enable_jellyfin": _parse_bool(os.getenv("ENABLE_JELLYFIN"), False),
+        "enable_nextcloud": _parse_bool(os.getenv("ENABLE_NEXTCLOUD"), False),
+        "enable_immich": _parse_bool(os.getenv("ENABLE_IMMICH"), False),
+        "enable_static_page": _parse_bool(os.getenv("ENABLE_STATIC_PAGE"), True),
     }
 
 
@@ -142,6 +153,11 @@ def load_output_env() -> dict:
         "nextcloud_db_password": os.getenv("NEXTCLOUD_DB_PASSWORD", ""),
         "immich_db_password": os.getenv("IMMICH_DB_PASSWORD", ""),
         "wireguard_peers": os.getenv("WIREGUARD_PEERS", ""),
+        "authentik_user": os.getenv("AUTHENTIK_INITIAL_ADMIN_USERNAME", ""),
+        "enable_jellyfin": _parse_bool(os.getenv("ENABLE_JELLYFIN"), False),
+        "enable_nextcloud": _parse_bool(os.getenv("ENABLE_NEXTCLOUD"), False),
+        "enable_immich": _parse_bool(os.getenv("ENABLE_IMMICH"), False),
+        "enable_static_page": _parse_bool(os.getenv("ENABLE_STATIC_PAGE"), True),
     }
 
 
@@ -355,12 +371,60 @@ def run_environment_checks(answers: dict) -> dict:
     }
 
 
+def _ensure_writable(path: Path) -> None:
+    """Verifica se o path é gravável; se não, oferece correção via sudo chown.
+
+    Aborta o script se o usuário recusar ou se o sudo falhar.
+    """
+    path.mkdir(parents=True, exist_ok=True)
+
+    if os.access(path, os.W_OK):
+        return
+
+    console.print(f"[yellow]⚠ Sem permissão de escrita em {path}[/yellow]")
+    should_fix = questionary.confirm(
+        "Deseja executar 'sudo chown' para corrigir as permissões?",
+        default=False,
+    ).ask()
+
+    if not should_fix:
+        console.print(
+            "[red]Abortado. Resolva manualmente com:[/red]\n"
+            f"  sudo chown {os.getuid()}:{os.getgid()} {path}"
+        )
+        sys.exit(1)
+
+    result = subprocess.run(
+        ["sudo", "chown", f"{os.getuid()}:{os.getgid()}", str(path)],
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        console.print(f"[red]sudo chown falhou:[/red] {result.stderr.strip()}")
+        sys.exit(1)
+
+    console.print(f"[green]✔ Permissões corrigidas em {path}[/green]")
+
+
+def check_storage_permissions(storage_path: str) -> None:
+    """Verifica se o usuário tem permissão de escrita no storage_path."""
+    _ensure_writable(Path(storage_path))
+
+
+def check_output_permissions() -> None:
+    """Verifica se o diretório output/ é gravável."""
+    _ensure_writable(OUTPUT)
+
+
 # ── Geração de arquivos ───────────────────────────────────────────────────────
 
 
 def create_data_directories(context: dict) -> None:
-    """Cria os subdiretórios necessários para cada serviço."""
+    """Cria os subdiretórios necessários para cada serviço com permissões seguras."""
     storage = Path(context["storage_path"])
+    uid = os.getuid()
+    gid = os.getgid()
 
     dirs = [
         "traefik/acme",
@@ -381,8 +445,11 @@ def create_data_directories(context: dict) -> None:
                 "prowlarr/config",
                 "radarr/config",
                 "sonarr/config",
+                "lidarr/config",
                 "bazarr/config",
                 "qbittorrent/config",
+                "jellyseerr/config",
+                "unpackerr/config",
                 "downloads",
             ]
         )
@@ -406,10 +473,52 @@ def create_data_directories(context: dict) -> None:
     for dir_path in dirs:
         full_path = storage / dir_path
         try:
+            created = not full_path.exists()
             full_path.mkdir(parents=True, exist_ok=True)
-            if "adguard" in dir_path:
-                full_path.chmod(0o777)
-            console.print(f"  [green]✔[/green] {dir_path}")
+
+            # Ajusta ownership se necessário
+            stat = full_path.stat()
+            if stat.st_uid != uid or stat.st_gid != gid:
+                try:
+                    os.chown(full_path, uid, gid)
+                except (PermissionError, OSError) as e:
+                    if not created:
+                        # Diretório existente: tenta sudo no path específico
+                        result = subprocess.run(
+                            ["sudo", "chown", f"{uid}:{gid}", str(full_path)],
+                            capture_output=True,
+                            text=True,
+                        )
+                        if result.returncode != 0:
+                            console.print(
+                                f"  [yellow]⚠[/yellow] {dir_path} — permissão não ajustada "
+                                f"(ownership diferente, sudo falhou: {result.stderr.strip()})"
+                            )
+                            continue
+                    else:
+                        raise RuntimeError(
+                            f"Não foi possível ajustar ownership do diretório recém-criado: {e}"
+                        ) from e
+
+            # AdGuard precisa de 777 por design do container; demais usam 755
+            expected_mode = 0o777 if "adguard" in dir_path else 0o755
+            current_mode = stat.st_mode & 0o777
+            if current_mode != expected_mode:
+                try:
+                    full_path.chmod(expected_mode)
+                except (PermissionError, OSError) as e:
+                    if not created:
+                        console.print(
+                            f"  [yellow]⚠[/yellow] {dir_path} — permissão não ajustada ({e})"
+                        )
+                        continue
+                    else:
+                        raise RuntimeError(
+                            f"Não foi possível ajustar modo do diretório recém-criado: {e}"
+                        ) from e
+
+            status_msg = "criado" if created else "existente"
+            console.print(f"  [green]✔[/green] {dir_path} ({status_msg})")
         except Exception as e:
             console.print(f"  [red]✘[/red] {dir_path} — {e}")
 
@@ -444,6 +553,7 @@ def render_templates(context: dict) -> None:
             template = env.get_template(template_name)
             rendered = template.render(**context)
             output_path.write_text(rendered)
+            output_path.chmod(0o644)  # garante leitura independente do umask
             console.print(f"  [green]✔[/green] {output_path.relative_to(ROOT)}")
         except Exception as e:
             console.print(f"  [red]✘[/red] {output_path.relative_to(ROOT)} — {e}")
@@ -465,7 +575,10 @@ def generate_post_build_notes(context: dict) -> None:
         enabled_services.append("- Prowlarr: https://prowlarr." + domain)
         enabled_services.append("- Radarr: https://radarr." + domain)
         enabled_services.append("- Sonarr: https://sonarr." + domain)
+        enabled_services.append("- Lidarr: https://lidarr." + domain)
+        enabled_services.append("- qBittorrent: https://qbit." + domain)
         enabled_services.append("- Bazarr: https://bazarr." + domain)
+        enabled_services.append("- Jellyseerr: https://jellyseerr." + domain)
 
     if context.get("enable_nextcloud"):
         enabled_services.append("- Nextcloud: https://files." + domain)
@@ -525,12 +638,36 @@ def print_next_steps(context: dict) -> None:
         f"[cyan]1.[/cyan] Crie um registro DNS wildcard no seu provedor:\n"
         f"   [dim]*.{domain}  →  A  →  {context['local_ip']}[/dim]"
     )
-    service_access = (
-        f"[dim]- Authentik: https://auth.{domain}[/dim]\n"
-        f"[dim]- AdGuard: https://dns.{domain} (user: {context['authentik_email']})[/dim]\n"
-        f"[dim]- Traefik: https://traefik.{domain}[/dim]\n"
-        f"[dim]- Teste: https://test.{domain}[/dim]"
-    )
+    services_list = [
+        f"[dim]- Authentik: https://auth.{domain}[/dim]",
+        f"[dim]- AdGuard: https://dns.{domain} (user: {context['authentik_email']})[/dim]",
+        f"[dim]- Traefik: https://traefik.{domain}[/dim]",
+    ]
+
+    if context.get("enable_jellyfin"):
+        services_list.extend(
+            [
+                f"[dim]- Jellyfin: https://jellyfin.{domain}[/dim]",
+                f"[dim]- Prowlarr: https://prowlarr.{domain}[/dim]",
+                f"[dim]- Radarr: https://radarr.{domain}[/dim]",
+                f"[dim]- Sonarr: https://sonarr.{domain}[/dim]",
+                f"[dim]- Lidarr: https://lidarr.{domain}[/dim]",
+                f"[dim]- qBittorrent: https://qbit.{domain}[/dim]",
+                f"[dim]- Bazarr: https://bazarr.{domain}[/dim]",
+                f"[dim]- Jellyseerr: https://jellyseerr.{domain}[/dim]",
+            ]
+        )
+
+    if context.get("enable_nextcloud"):
+        services_list.append(f"[dim]- Nextcloud: https://files.{domain}[/dim]")
+
+    if context.get("enable_immich"):
+        services_list.append(f"[dim]- Immich: https://photos.{domain}[/dim]")
+
+    if context.get("enable_static_page"):
+        services_list.append(f"[dim]- Teste: https://test.{domain}[/dim]")
+
+    service_access = "\n".join(services_list)
 
     console.print()
     console.print(
@@ -566,32 +703,44 @@ def print_next_steps(context: dict) -> None:
 @click.command()
 @click.option("--dry-run", is_flag=True, help="Mostra o contexto sem gerar arquivos")
 @click.option(
+    "--non-interactive",
     "--use-existing-env",
+    "non_interactive",
     is_flag=True,
-    help="Usa valores do .env existente sem perguntar interativamente",
+    help="Usa valores do .env existente sem perguntas interativas",
 )
-def main(dry_run: bool, use_existing_env: bool):
+def main(dry_run: bool, non_interactive: bool):
     """Homeserver setup — gera docker-compose.yml, .env e configurações."""
     services_config = yaml.safe_load(CONFIG.read_text())
 
     env_defaults = load_existing_env()
 
-    if use_existing_env:
+    if non_interactive:
         # Usa valores do .env existente sem perguntas
         if not env_defaults.get("domain"):
             console.print(
-                "[red]--use-existing-env requer um .env válido com DOMAIN[/red]"
+                "[red]--non-interactive requer um .env válido com DOMAIN[/red]"
             )
             sys.exit(1)
 
         console.print(
             Panel(
-                "[bold cyan]Modo --use-existing-env[/bold cyan]\n"
+                "[bold cyan]Modo --non-interactive[/bold cyan]\n"
                 "Usando valores do .env existente sem perguntas interativas.",
                 border_style="cyan",
             )
         )
         console.print()
+
+        optional_services = []
+        if env_defaults.get("enable_jellyfin"):
+            optional_services.append("jellyfin")
+        if env_defaults.get("enable_nextcloud"):
+            optional_services.append("nextcloud")
+        if env_defaults.get("enable_immich"):
+            optional_services.append("immich")
+        if env_defaults.get("enable_static_page"):
+            optional_services.append("static-page")
 
         answers = {
             "domain": env_defaults["domain"],
@@ -602,11 +751,11 @@ def main(dry_run: bool, use_existing_env: bool):
             "authentik_email": env_defaults.get("authentik_email", ""),
             "authentik_user": env_defaults.get("authentik_user", "administrator"),
             "authentik_password": env_defaults.get("authentik_password", ""),
-            "optional_services": [],
-            "enable_jellyfin": False,
-            "enable_nextcloud": False,
-            "enable_immich": False,
-            "enable_static_page": True,
+            "optional_services": optional_services,
+            "enable_jellyfin": env_defaults.get("enable_jellyfin", False),
+            "enable_nextcloud": env_defaults.get("enable_nextcloud", False),
+            "enable_immich": env_defaults.get("enable_immich", False),
+            "enable_static_page": env_defaults.get("enable_static_page", True),
             "wireguard_peers": env_defaults.get("wireguard_peers", "phone"),
         }
     else:
@@ -621,6 +770,7 @@ def main(dry_run: bool, use_existing_env: bool):
     context = {
         **answers,
         **env_info,
+        "root_path": str(ROOT),
         # Secrets — reuse existing se disponível, caso contrário gera novos
         "authentik_secret_key": existing_secrets.get("authentik_secret_key")
         or generate_secret(50),
@@ -633,6 +783,19 @@ def main(dry_run: bool, use_existing_env: bool):
         "wireguard_peers": answers.get("wireguard_peers")
         or existing_secrets.get("wireguard_peers")
         or "phone",
+        # Flags de serviços — output/.env prevalece sobre .env raiz (idempotência)
+        "enable_jellyfin": existing_secrets.get("enable_jellyfin")
+        if existing_secrets.get("enable_jellyfin") is not None
+        else answers.get("enable_jellyfin", False),
+        "enable_nextcloud": existing_secrets.get("enable_nextcloud")
+        if existing_secrets.get("enable_nextcloud") is not None
+        else answers.get("enable_nextcloud", False),
+        "enable_immich": existing_secrets.get("enable_immich")
+        if existing_secrets.get("enable_immich") is not None
+        else answers.get("enable_immich", False),
+        "enable_static_page": existing_secrets.get("enable_static_page")
+        if existing_secrets.get("enable_static_page") is not None
+        else answers.get("enable_static_page", True),
     }
 
     if dry_run:
@@ -645,9 +808,14 @@ def main(dry_run: bool, use_existing_env: bool):
             if "password" not in k and "secret" not in k and "token" not in k
         }
         console.print_json(json.dumps(safe, indent=2))
+        console.print(
+            "[dim]Nota: --dry-run não verifica permissões de diretórios.[/dim]"
+        )
         return
 
+    check_storage_permissions(context["storage_path"])
     create_data_directories(context)
+    check_output_permissions()
     render_templates(context)
     generate_post_build_notes(context)
     print_next_steps(context)
