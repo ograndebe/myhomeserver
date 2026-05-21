@@ -62,3 +62,18 @@ Toda spec deve passar nestes checks antes de ser considerada pronta para impleme
 - [ ] **Alinhada com context.md** — não viola nenhuma premissa inviolável
 - [ ] **Escopo atômico** — uma feature por spec, sem misturar funcionalidades independentes
 - [ ] **Notas técnicas justificam decisões** — explica o "porquê" de escolhas técnicas relevantes
+
+---
+
+## 6. Ciclo de Verificação de Nova Feature
+
+Toda implementação deve passar por este ciclo de verificação antes de ser considerada completa:
+
+1. **Gerar output** — executar `./setup.py` (reusa respostas anteriores do `.env`)
+   - Se a feature introduz novos parâmetros sem defaults no `.env`, pedir ao usuário para executar o script manualmente e responder as perguntas
+2. **Conferir arquivos gerados** — inspecionar `output/` para confirmar que os templates renderizaram corretamente
+3. **Aplicar post-setup** — executar `./post-setup.sh` para preparar diretórios e permissões
+4. **Aguardar containers** — esperar serviços subirem (`docker compose -f output/docker-compose.yml up -d`)
+5. **Verificar logs** — checar logs dos containers modificados (`docker compose -f output/docker-compose.yml logs <servico>`) em busca de erros
+6. **Corrigir e repetir** — se houver erros, corrigir templates/configs e voltar ao passo 1
+7. **Limite de segurança** — a cada **5 iterações** do ciclo, **pedir confirmação ao usuário** antes de prosseguir (evitar loop infinito)
