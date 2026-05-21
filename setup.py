@@ -597,16 +597,12 @@ Crie um registro DNS wildcard no Cloudflare:
 
 {dns_instructions}
 
-### 2. Subir os serviços (com bootstrap automático)
+### 2. Subir os serviços
   ./post-setup.sh
 
 O script post-setup.sh irá:
   - Subir todos os containers
-  - Executar o container bootstrap que configura o Authentik automaticamente
-  - O bootstrap container cria:
-    * Proxy Providers para Traefik e AdGuard
-    * Aplicações no Authentik
-    * Outpost para ForwardAuth
+  - Cada container executa seu próprio post-setup automaticamente
 
 ### 3. Serviços Disponíveis
 {chr(10).join(enabled_services)}
@@ -620,7 +616,6 @@ Para configurar peers adicionais, edite WIREGUARD_PEERS no arquivo .env
 e recrie o container: docker compose up -d wireguard
 
 ### 6. Troubleshooting
-  - Ver logs do bootstrap: docker compose logs bootstrap
   - Ver logs de serviço: docker compose logs [serviço]
   - Rebuild: docker compose down && docker compose up -d --build
   - Ver containers: docker compose ps
@@ -678,12 +673,12 @@ def print_next_steps(context: dict) -> None:
 
 {dns_step}
 
-[cyan]2.[/cyan] Suba os serviços (com bootstrap automático):
+[cyan]2.[/cyan] Suba os serviços:
    [dim]./post-setup.sh[/dim]
 
    O script irá:
    - Subir todos os containers
-   - Configurar o Authentik automaticamente via bootstrap container
+   - Cada container executa seu próprio post-setup automaticamente
 
 [cyan]3.[/cyan] Acesse os serviços:
 {service_access}

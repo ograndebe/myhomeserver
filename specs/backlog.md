@@ -1,6 +1,6 @@
 # Backlog — Homeserver
 
-> Última atualização: 2026-05-07
+> Última atualização: 2026-05-20
 
 ---
 
@@ -58,6 +58,10 @@
   - Concluído em: 2026-05-07
   - Spec: [spec-006](spec-006-modo-nao-interativo/spec.md)
   - Plan: [plan-006](spec-006-modo-nao-interativo/plan.md)
+- [x] **BACK-012** Refatorar containers para adotar padrão de post-setup interno
+  - Concluído em: 2026-05-21
+  - Spec: [spec-007](spec-007-container-post-setup-pattern/spec.md)
+  - Plan: [plan-007](spec-007-container-post-setup-pattern/plan.md)
 
 ---
 

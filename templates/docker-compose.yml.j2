@@ -153,6 +153,7 @@ services:
     image: ghcr.io/goauthentik/server:2024.8
     container_name: authentik-server
     restart: unless-stopped
+    entrypoint: ["/custom-entrypoint.sh"]
     command: server
     environment:
       - AUTHENTIK_REDIS__HOST=authentik-redis
@@ -164,9 +165,13 @@ services:
       - AUTHENTIK_ERROR_REPORTING__ENABLED=false
       - AUTHENTIK_BOOTSTRAP_EMAIL=${AUTHENTIK_INITIAL_ADMIN_EMAIL}
       - AUTHENTIK_BOOTSTRAP_PASSWORD=${AUTHENTIK_INITIAL_ADMIN_PASSWORD}
+      - DOMAIN={{ domain }}
     volumes:
       - authentik_media_data:/media
       - {{ storage_path }}/authentik/custom-templates:/templates
+      - {{ root_path }}/scripts/authentik-server/custom-entrypoint.sh:/custom-entrypoint.sh:ro
+      - {{ root_path }}/scripts/authentik-server/post-setup.sh:/post-setup.sh:ro
+      - {{ root_path }}/scripts/authentik-server/post-setup.py:/post-setup.py:ro
     networks:
       - proxy
       - internal
@@ -203,7 +208,6 @@ services:
       - AUTHENTIK_BOOTSTRAP_EMAIL=${AUTHENTIK_INITIAL_ADMIN_EMAIL}
       - AUTHENTIK_BOOTSTRAP_PASSWORD=${AUTHENTIK_INITIAL_ADMIN_PASSWORD}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - authentik_media_data:/media
       - {{ storage_path }}/authentik/custom-templates:/templates
     networks:
@@ -214,36 +218,12 @@ services:
       authentik-redis:
         condition: service_healthy
 
-  # ── Bootstrap (pós-setup automático) ────────────────────────────────────
-  bootstrap:
-    build:
-      context: ../
-      dockerfile: bootstrap/Dockerfile
-    container_name: homeserver-bootstrap
-    volumes:
-      - ../bootstrap/scripts:/app/scripts:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - DOMAIN={{ domain }}
-      - AUTHENTIK_INITIAL_ADMIN_EMAIL={{ authentik_email }}
-      - AUTHENTIK_INITIAL_ADMIN_PASSWORD={{ authentik_password }}
-    networks:
-      - proxy
-      - internal
-    depends_on:
-      authentik-server:
-        condition: service_healthy
-      authentik-worker:
-        condition: service_healthy
-    restart: "no"
-
 {% if enable_jellyfin %}
   {% include 'services/jellyfin.j2' %}
   {% include 'services/arr-stack.j2' %}
   {% include 'services/lidarr.j2' %}
   {% include 'services/jellyseerr.j2' %}
   {% include 'services/unpackerr.j2' %}
-  {% include 'services/post-setup.j2' %}
 {% endif %}
 {% if enable_nextcloud %}
   {% include 'services/nextcloud.j2' %}

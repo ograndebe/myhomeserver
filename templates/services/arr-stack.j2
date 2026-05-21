@@ -3,12 +3,17 @@
     image: lscr.io/linuxserver/prowlarr:2.3.5
     container_name: prowlarr
     restart: unless-stopped
+    entrypoint: ["/custom-entrypoint.sh"]
+    command: ["/init"]
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=${TZ:-America/Sao_Paulo}
     volumes:
       - {{ storage_path }}/prowlarr/config:/config
+      - {{ root_path }}/scripts/prowlarr/custom-entrypoint.sh:/custom-entrypoint.sh:ro
+      - {{ root_path }}/scripts/prowlarr/post-setup.sh:/post-setup.sh:ro
+      - {{ root_path }}/trackers.txt:/app/trackers.txt:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9696/health || exit 1"]
       interval: 30s
@@ -31,6 +36,8 @@
     image: lscr.io/linuxserver/radarr:6.1.1
     container_name: radarr
     restart: unless-stopped
+    entrypoint: ["/custom-entrypoint.sh"]
+    command: ["/init"]
     environment:
       - PUID=1000
       - PGID=1000
@@ -39,6 +46,9 @@
       - {{ storage_path }}/radarr/config:/config
       - {{ storage_path }}/media/movies:/movies
       - {{ storage_path }}/downloads:/downloads
+      - {{ root_path }}/scripts/radarr/custom-entrypoint.sh:/custom-entrypoint.sh:ro
+      - {{ root_path }}/scripts/radarr/post-setup.sh:/post-setup.sh:ro
+      - {{ storage_path }}/prowlarr/config:/prowlarr-config:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:7878/health || exit 1"]
       interval: 30s
@@ -61,6 +71,8 @@
     image: lscr.io/linuxserver/sonarr:4.0.17
     container_name: sonarr
     restart: unless-stopped
+    entrypoint: ["/custom-entrypoint.sh"]
+    command: ["/init"]
     environment:
       - PUID=1000
       - PGID=1000
@@ -69,6 +81,9 @@
       - {{ storage_path }}/sonarr/config:/config
       - {{ storage_path }}/media/shows:/tv
       - {{ storage_path }}/downloads:/downloads
+      - {{ root_path }}/scripts/sonarr/custom-entrypoint.sh:/custom-entrypoint.sh:ro
+      - {{ root_path }}/scripts/sonarr/post-setup.sh:/post-setup.sh:ro
+      - {{ storage_path }}/prowlarr/config:/prowlarr-config:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8989/health || exit 1"]
       interval: 30s
@@ -91,6 +106,8 @@
     image: lscr.io/linuxserver/bazarr:1.5.6
     container_name: bazarr
     restart: unless-stopped
+    entrypoint: ["/custom-entrypoint.sh"]
+    command: ["/init"]
     environment:
       - PUID=1000
       - PGID=1000
@@ -99,6 +116,10 @@
       - {{ storage_path }}/bazarr/config:/config
       - {{ storage_path }}/media/movies:/movies
       - {{ storage_path }}/media/shows:/tv
+      - {{ root_path }}/scripts/bazarr/custom-entrypoint.sh:/custom-entrypoint.sh:ro
+      - {{ root_path }}/scripts/bazarr/post-setup.sh:/post-setup.sh:ro
+      - {{ storage_path }}/radarr/config:/radarr-config:ro
+      - {{ storage_path }}/sonarr/config:/sonarr-config:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:6767/health || exit 1"]
       interval: 30s
@@ -121,6 +142,8 @@
     image: lscr.io/linuxserver/qbittorrent:5.1.4
     container_name: qbittorrent
     restart: unless-stopped
+    entrypoint: ["/custom-entrypoint.sh"]
+    command: ["/init"]
     environment:
       - PUID=1000
       - PGID=1000
@@ -129,6 +152,9 @@
     volumes:
       - {{ storage_path }}/qbittorrent/config:/config
       - {{ storage_path }}/downloads:/downloads
+      - {{ root_path }}/scripts/qbittorrent/custom-entrypoint.sh:/custom-entrypoint.sh:ro
+      - {{ root_path }}/scripts/qbittorrent/post-setup.sh:/post-setup.sh:ro
+      - {{ root_path }}/trackers.txt:/app/trackers.txt:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/v2/app/version || exit 1"]
       interval: 30s
